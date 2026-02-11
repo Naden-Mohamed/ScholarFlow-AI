@@ -7,3 +7,4 @@ aiofiles==25.1.0
 python-multipart==0.0.22
 langchain==1.2.10
 PyMuPDF==1.26.7
+langchain-community==0.4.1
