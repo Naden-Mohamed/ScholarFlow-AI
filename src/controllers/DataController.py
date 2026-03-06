@@ -1,7 +1,7 @@
 import re
 from .BaseController import BaseController
 from fastapi import UploadFile
-from models.Enums.ResponseEnum import ResponseEnum
+from models.Enums.ResponseEnum import ResponseStatus
 import os
 from controllers.ProjectController import ProjectController
 
@@ -11,12 +11,12 @@ class DataController(BaseController):
 
     def validate_uploaded_file(self, file: UploadFile):
         if file.content_type not in self.settings.FILE_ALLOWED_TYPES:
-            return False, ResponseEnum.FILE_TYPE_NOT_SUPPORTED.value
+            return False, ResponseStatus.FILE_TYPE_NOT_SUPPORTED.value
         
         if file.size > self.settings.FILE_MAX_SIZE_MB * 1024 * 1024:
-            return False, ResponseEnum.FILE_SIZE_EXCEEDED.value
+            return False, ResponseStatus.FILE_SIZE_EXCEEDED.value
 
-        return True, ResponseEnum.FILE_VALIDATED_SUCCESSFULLY.value
+        return True, ResponseStatus.FILE_VALIDATED_SUCCESSFULLY.value
 
     def generate_unique_filename(self, original_filename: str, project_id: str = None):
         random_filename = self.generate_random_strings()

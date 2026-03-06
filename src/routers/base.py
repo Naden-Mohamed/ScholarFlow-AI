@@ -11,3 +11,7 @@ router = APIRouter(
 def get_status(app_settings: Settings = Depends(get_settings)):
     return {"APP_NAME": app_settings.app_name}
 
+
+@router.get("/health")
+def health_check():
+    return {"status": "ok"} 
