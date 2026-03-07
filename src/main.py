@@ -3,6 +3,8 @@ from routers import base, data
 from motor.motor_asyncio import AsyncIOMotorClient
 from helpers.config import get_settings
 from models.db_schemas.data_chunk import DataChunk
+import gridfs
+import os
 
 app = FastAPI()
 
@@ -10,10 +12,12 @@ app = FastAPI()
 settings = get_settings()
 db_client = AsyncIOMotorClient(settings.MONGODB_URI)
 db_name = db_client[settings.MONGODB_DB_NAME]
+# fs = gridfs.GridFSBucket(db_name)
 
 async def startup_span():
     app.mongodb_client = db_client
     app.mongodb = db_name
+    # app.gridfs = fs
     # print("Connected to the MongoDB database!")
     try:
         await app.mongodb_client.admin.command("ping")

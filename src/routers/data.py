@@ -1,3 +1,5 @@
+import os
+
 from helpers.config import get_settings, Settings
 from fastapi import APIRouter, UploadFile, Depends, status, Request
 from fastapi.responses import JSONResponse
@@ -13,7 +15,7 @@ from models.ChunkModel import DataChunkModel
 from models.db_schemas import DataChunk, Asset
 from models.AssetModel import AssetModel
 from bson.objectid import ObjectId
-
+from models.Enums.DataBaseEnum import DataBaseEnums
 logger = logging.getLogger("uvicorn.error")
 
 data_router = APIRouter(
@@ -92,7 +94,7 @@ async def upload_file(
 
 
 @data_router.post("/process/{project_id}")
-async def process_file(request: Request,project_id: str, data: DataSchema): # DataSchema is ProcessRequestBody
+async def process_file(request: Request,project_id: str, data: DataSchema): 
    
     chunk_size = data.chunk_size
     chunk_overlap = data.overlap_size
@@ -108,7 +110,7 @@ async def process_file(request: Request,project_id: str, data: DataSchema): # Da
     asset_model = await AssetModel.create_instance(db_client=request.app.mongodb_client)
 
     if data.file_id:
-        asset_record = await asset_model.get_asset_record(asset_project_id=project.id, asset_name=data.file_id)
+        asset_record = await asset_model.get_asset_record(asset_project_id=project_id, asset_id=data.file_id)
         if asset_record is None:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -120,7 +122,7 @@ async def process_file(request: Request,project_id: str, data: DataSchema): # Da
         project_files_id = { str(asset_record.id): asset_record.asset_name }
     else:
         
-        project_files = await asset_model.get_all_project_assets(asset_project_id=project.id, asset_type="text/plain")
+        project_files = await asset_model.get_all_project_assets(asset_project_id=project.id, asset_type="application/pdf")
         project_files_id = { str(record.id): record.asset_name for record in project_files}
 
     if len(project_files_id) == 0:
@@ -144,14 +146,26 @@ async def process_file(request: Request,project_id: str, data: DataSchema): # Da
 
 
     for asset_id, file_id in project_files_id.items():
-        file_content = process_controller.get_file_content(file_id=file_id)
+        file_path = asset_record.asset_config.get("file_path")
 
-        if file_content is None or len(file_content) == 0:
-            logger.warning(f"File with id {file_id} has no content or could not be processed.") 
+        if not file_path or not os.path.exists(file_path):
+            logger.warning(f"File not found on disk: {file_path}")
             continue
 
-        file_chunks = process_controller.process_file_content(file_id=file_id, file_content=file_content, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        # ✅ Fix 5: load file content directly from local path
+        file_content = process_controller.get_file_content(file_id=file_path)
 
+        if file_content is None or len(file_content) == 0:
+            logger.warning(f"File {file_path} has no content or could not be processed.")
+            continue
+
+        # ✅ Fix 6: pass file_path as file_id for extension detection
+        file_chunks = process_controller.process_file_content(
+            file_id=file_path,
+            file_content=file_content,
+            chunk_size=chunk_size,
+            overlap_size=chunk_overlap
+        )
         if file_chunks is None or len(file_chunks) == 0:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -176,13 +190,14 @@ async def process_file(request: Request,project_id: str, data: DataSchema): # Da
 
         inserted_count += await data_chunk_model.insert_many_chunks(chunks=file_chunks_records)
         files_count += 1
-        return JSONResponse(
-                content={  
-                    "response_signal": ResponseStatus.FILE_PROCESSED_SUCCESSFULLY.value,
-                    "processed_chunks": inserted_count,
-                    "processed_files_count": files_count
-                }
-            )
+
+    return JSONResponse(
+            content={  
+                "response_signal": ResponseStatus.FILE_PROCESSED_SUCCESSFULLY.value,
+                "processed_chunks": inserted_count,
+                "processed_files_count": files_count
+            }
+        )
         
 
 
