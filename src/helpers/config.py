@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     GENERATION_DEFAULT_MAX_TOKENS: int = None
     GENERATION_DEFAULT_TEMPERATURE: float = None
 
+    VECTOR_DB_URL: str = None
+    VECTOR_DB_API_KEY: str = None
+    VECTOR_DB_DISTANCE_METRIC: str = None
+    
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 def get_settings():
