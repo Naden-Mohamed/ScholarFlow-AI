@@ -158,6 +158,7 @@ Generated across 3 levels:
                 │ + Personalization        │
                 └──────────────────────────┘
 ```
+<img width="1155" height="740" alt="ScholarFlow system design" src="https://github.com/user-attachments/assets/723689dd-c611-489d-87ab-112f0a14271d" />
 
 ---
 
