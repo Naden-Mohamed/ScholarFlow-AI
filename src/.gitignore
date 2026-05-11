@@ -1,4 +1,4 @@
 .env
 .venv
-assets/
+.vscode
 src\assets\files

@@ -1,20 +1,19 @@
 from fastapi import FastAPI
-from routers import base, data
+from contextlib import asynccontextmanager
+from .routers import base, data, rag
 from motor.motor_asyncio import AsyncIOMotorClient
-from helpers.config import get_settings
-from .stores.llm.LLMProviderFactory import LLMProviderFactory
+from src.helpers.config import get_settings
+from .stores import LLMProviderFactory
+from .stores import VectorDBProviderFactory
+from .stores.llm.templates.template_parser import TemplateParser
 import os
 
-app = FastAPI()
 
-settings = get_settings()
-db_client = AsyncIOMotorClient(settings.MONGODB_URI)
-db_name = db_client[settings.MONGODB_DB_NAME]
-
-
-async def startup_span():
-    app.mongodb_client = db_client
-    app.mongodb = db_name
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    app.mongodb_client = AsyncIOMotorClient(settings.MONGODB_URI)
+    app.mongodb = app.mongodb_client[settings.MONGODB_DB_NAME]
     try:
         await app.mongodb_client.admin.command("ping")
         print("Connected to MongoDB!")
@@ -22,22 +21,37 @@ async def startup_span():
         print(f"MongoDB connection failed: {e}")  
         raise e  
 
-    llm_provider_factory = LLMProviderFactory(config=settings)
+    llm_provider_factory = LLMProviderFactory(settings)
+    vector_db_provider_factory = VectorDBProviderFactory(settings)
 
+    app.vector_db_client = vector_db_provider_factory.create(provider=settings.VECTOR_DB_BACKEND)
+    app.vector_db_client.connect()  
+    print("Connected to the Qdrant Vector database!")
 
-    app.generation_client = llm_provider_factory.create(provider=settings.GENERATION_BACKEND)
+    app.generation_client = llm_provider_factory.create(settings.GENERATION_BACKEND)
     app.generation_client.set_generation_model(model_id = settings.GENERATION_MODEL_ID)
 
-    app.embedding_client = llm_provider_factory.create(provider=settings.EMBEDDING_BACKEND)
+    app.embedding_client = llm_provider_factory.create(settings.EMBEDDING_BACKEND)
     app.embedding_client.set_embedding_model(model_id=settings.EMBEDDING_MODEL_ID,
                                                 embedding_size=settings.EMBEDDING_MODEL_SIZE)
-async def shutdown_span():
+    
+    app.template_parser = TemplateParser(
+    language=settings.PRIMARY_LANG,
+    default_language=settings.DEFAULT_LANG,
+    )
+
+  
+
+    yield
+
     app.mongodb_client.close()
     print("Disconnected from the MongoDB database!")
+    app.vector_db_client.disconnect()
+    print("Disconnected from the Qdrant Vector database!")
 
 
-app.router.lifespan.on_startup.append(startup_span)
-app.router.lifespan.on_shutdown.append(shutdown_span)
+app = FastAPI(lifespan=lifespan)
 
 app.include_router(base.router)
 app.include_router(data.data_router)
+app.include_router(rag.rag_router)

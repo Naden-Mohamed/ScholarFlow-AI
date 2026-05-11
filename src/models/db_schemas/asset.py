@@ -8,9 +8,9 @@ class Asset(BaseModel):
     asset_project_id: ObjectId
     asset_type: str = Field(..., min_length=1)
     asset_name: str = Field(..., min_length=1)
-    asset_size: int = Field(ge=0, default=None)
-    asset_config: dict = Field(default=None)
-    asset_pushed_at: datetime = Field(default=datetime.utcnow)
+    asset_size: int = Field(ge=0)
+    asset_config: dict | None
+    asset_pushed_at: datetime
 
     class Config:
         arbitrary_types_allowed = True

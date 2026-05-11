@@ -1,7 +1,8 @@
-from helpers.config import Settings, get_settings
+from src.helpers.config import get_settings
 import os
 import random
 import string
+
 class BaseController:
     def __init__(self):
         self.settings = get_settings()

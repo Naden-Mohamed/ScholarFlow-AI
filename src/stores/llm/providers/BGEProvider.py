@@ -1,5 +1,5 @@
 from ..LLMInterface import LLMInterface
-from ..LLMEnums import LLMEnums
+from ..LLMEnums import DocumentTypeEnum
 from sentence_transformers import SentenceTransformer
 import logging
 
@@ -48,7 +48,7 @@ class BGEProvider(LLMInterface):
 
     def generate_text(self, prompt: str, chat_history: list = [],
                       max_output_tokens: int = None, temperature: float = None):
-        self.logger.error("BGE models do not support text generation.")
+        self.logger.error("BGE models do not support text generation.") 
         return None
 
     def embed_text(self, text: str, document_type: str = None):
@@ -65,7 +65,7 @@ class BGEProvider(LLMInterface):
 
             # ✅ bge-multilingual-gemma2 uses instruction-based embedding
             # document_type differentiates query vs passage for better accuracy
-            if document_type == LLMEnums.DocumentTypeEnum.QUERY.value:
+            if document_type == DocumentTypeEnum.QUERY.value:
                 instruction = "Represent this query for searching relevant passages: "
             else:
                 instruction = "Represent this passage for retrieval: "

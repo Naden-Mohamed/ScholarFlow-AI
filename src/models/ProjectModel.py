@@ -1,7 +1,7 @@
 from .BaseDataModel import BaseDataModel
 from .db_schemas.project import Project
 from .Enums.DataBaseEnum import DataBaseEnums
-from models.Enums import DataBaseEnum
+from src.models.Enums import DataBaseEnum
 
 class ProjectModel(BaseDataModel):
     def __init__(self, db_client: object):
@@ -48,7 +48,7 @@ class ProjectModel(BaseDataModel):
         existing_project = await self.collection.find_one({"project_id": project_id})
 
         if existing_project is None:
-            project = Project(project_id=project_id)
+            project = Project(_id = None, project_id=project_id) # How does _id val supposed to be assigned
             project = await self.create_project(project=project)
             return project
         

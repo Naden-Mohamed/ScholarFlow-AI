@@ -2,7 +2,7 @@ from enum import Enum
 
 class LLMEnums(Enum):
     GROQ = "GROQ"
-    COHERE = "COHERE"
+    BGE = "BGE"
 
 class GROQEnums(Enum):
     SYSTEM = "system"

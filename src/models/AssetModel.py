@@ -6,7 +6,7 @@ import gridfs
 import os
 from motor.motor_asyncio import AsyncIOMotorGridFSBucket
 import tempfile
-from controllers.ProcessController import ProcessController
+from src.controllers.ProcessController import ProcessController
 
 class AssetModel(BaseDataModel):
 

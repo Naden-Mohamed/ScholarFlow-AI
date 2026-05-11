@@ -3,7 +3,7 @@ from typing import List
 class VectorDBInterface(ABC):
 
     @abstractmethod
-    def conntect(self):
+    def connect(self):
         pass
     @abstractmethod
     def disconnect(self):
@@ -37,7 +37,7 @@ class VectorDBInterface(ABC):
         pass
 
     @abstractmethod
-    def instert_many(self, collection_name:str, texts:list, vectors:list, metadatas:list = None, batch_size:int = 50):
+    def insert_many(self, collection_name:str, texts:list, vectors:list, metadatas:list = None, batch_size:int = 50):
         pass
 
     @abstractmethod

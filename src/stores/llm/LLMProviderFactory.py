@@ -6,8 +6,8 @@ from .providers.BGEProvider import BGEProvider
 class LLMProviderFactory:
     def __init__(self,config: dict):
         self.config = config
-    @staticmethod
-    def get_provider(self, provider_type: LLMEnums):
+
+    def create(self, provider_type: str):
         if provider_type == LLMEnums.GROQ.value:
             return GROQProvider(
                 api_key=self.config.GROQ_API_KEY,

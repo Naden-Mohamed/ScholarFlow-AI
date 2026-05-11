@@ -1,9 +1,9 @@
 import re
 from .BaseController import BaseController
 from fastapi import UploadFile
-from models.Enums.ResponseEnum import ResponseStatus
+from src.models.Enums.ResponseEnum import ResponseStatus
 import os
-from controllers.ProjectController import ProjectController
+from src.controllers.ProjectController import ProjectController
 
 class DataController(BaseController):
     def __init__(self):
