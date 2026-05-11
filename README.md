@@ -118,46 +118,6 @@ Generated across 3 levels:
 
 ##  System Architecture
 
-```text
-                ┌──────────────────────────┐
-                │   Document Ingestion     │
-                │ (PDF, PPTX, Images, etc)│
-                └──────────┬───────────────┘
-                           ↓
-                ┌──────────────────────────┐
-                │  Parsing Layer           │
-                │ (Docling / Unstructured) │
-                └──────────┬───────────────┘
-                           ↓
-                ┌──────────────────────────┐
-                │  Chunking Engine         │
-                │ (Hierarchical)           │
-                └──────────┬───────────────┘
-                           ↓
-        ┌──────────────────────────────────────────┐
-        │ Storage Layer                            │
-        │                                          │
-        │  • Vector DB → Qdrant                    │
-        │  • Document Store → MongoDB              │
-        │  • Cache → Redis                         │
-        │  • Memory Graph → Neo4j                  │
-        └──────────────────────────────────────────┘
-                           ↓
-                ┌──────────────────────────┐
-                │ Retrieval Layer          │
-                │ Hybrid + HyDE + Rerank   │
-                └──────────┬───────────────┘
-                           ↓
-                ┌──────────────────────────┐
-                │ LLM Reasoning Layer      │
-                │ (GPT-4o / Claude)        │
-                └──────────┬───────────────┘
-                           ↓
-                ┌──────────────────────────┐
-                │ Response Generation      │
-                │ + Personalization        │
-                └──────────────────────────┘
-```
 <img width="1155" height="740" alt="ScholarFlow system design" src="https://github.com/user-attachments/assets/723689dd-c611-489d-87ab-112f0a14271d" />
 
 ---
