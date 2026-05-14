@@ -1,6 +1,6 @@
 from .BaseController import BaseController
 from models import Project, DataChunk
-from stores.llm.LLMEnums import DocumentTypeEnum
+from stores.llm.LLMEnums import DocumentTypeEnum, GROQEnums
 from typing import List
 import json
 
@@ -62,7 +62,7 @@ class RAGController(BaseController):
         return True
     
 
-    def search_vector_db_collection(self, project: Project, text: str, limit: int = 10):
+    def search_vector_db_collection(self, project: Project, text: str, limit: int = 3):
 
         collection_name = self.create_collection_name(project_id=project.project_id)
 
@@ -75,7 +75,7 @@ class RAGController(BaseController):
         results = self.vectordb_client.search_by_vector(
             collection_name=collection_name,
             vector=vector,
-            limit=limit
+            top_k=limit
         )
 
         if not results:
@@ -103,7 +103,7 @@ class RAGController(BaseController):
         documents_prompts = "\n".join([
             self.template_parser.get("prompts", "document_prompt", {
                     "doc_num": idx + 1,
-                    "chunk_text": doc.text,
+                    "chunk_text": doc.payload.get("text", "No content available"),
             })
             for idx, doc in enumerate(retrieved_documents)
         ])
@@ -114,7 +114,7 @@ class RAGController(BaseController):
         chat_history = [
             self.generation_client.construct_prompt(
                 prompt=system_prompt,
-                role=self.generation_client.Enums.SYSTEM.value,
+                role=GROQEnums.SYSTEM.value,
             )
         ]
 
@@ -125,5 +125,4 @@ class RAGController(BaseController):
             prompt=full_prompt,
             chat_history=chat_history
         )
-
         return answer, full_prompt, chat_history

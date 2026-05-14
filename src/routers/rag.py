@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, status, Request
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from .schemas.data_requests import PushRequest, SearchRequest
 from models.ProjectModel import ProjectModel
 from models.ChunkModel import DataChunkModel
@@ -143,11 +144,12 @@ async def search_index(request: Request, project_id: str, search_request: Search
                 }
             )
     
+    # Use jsonable_encoder to handle the ScoredPoint objects automatically
     return JSONResponse(
-        content={
+        content=jsonable_encoder({
             "signal": ResponseStatus.VECTORDB_SEARCH_SUCCESS.value,
-            "results": [ result.dict()  for result in results ]
-        }
+            "results": results 
+        })
     )
 
 @rag_router.post("/index/answer/{project_id}")

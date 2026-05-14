@@ -9,7 +9,6 @@ class VectorDBProviderFactory:
         if provider == VectorDBType.QDRANT.value:
             return QdrantDBProvider(
                 url=self.config.QDRANT_URL,
-                api_key=self.config.QDRANT_API_KEY,
                 distance_metric=self.config.VECTOR_DB_DISTANCE_METRIC
             )
         

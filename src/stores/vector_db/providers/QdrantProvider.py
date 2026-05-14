@@ -3,16 +3,15 @@ from ..VectorDBEnums import VectorDBType, DistanceMetric
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, PointStruct, Distance
 from typing import List
+from typing import Optional
 import logging
 import uuid
 
 class QdrantDBProvider(VectorDBInterface):
-    def __init__(self, url: str, api_key: str, distance_metric: str = "Cosine"):
+    def __init__(self, url: str, distance_metric: str = "Cosine"):
         self.url = url
-        self.api_key = api_key
         self.client = None
 
-        # ✅ Fix 4: map string to Distance enum for VectorParams
         if distance_metric == DistanceMetric.COSINE.value:
             self.distance_metric = Distance.COSINE
         elif distance_metric == DistanceMetric.EUCLIDEAN.value:
@@ -20,13 +19,13 @@ class QdrantDBProvider(VectorDBInterface):
         elif distance_metric == DistanceMetric.DOT_PRODUCT.value:
             self.distance_metric = Distance.DOT
         else:
-            self.distance_metric = Distance.COSINE  # ✅ safe default
+            self.distance_metric = Distance.COSINE  
 
         self.logger = logging.getLogger(__name__)
 
     def connect(self):
         try:
-            self.client = QdrantClient(url=self.url, api_key=self.api_key)
+            self.client = QdrantClient(url=self.url)
             self.logger.info("Connected to Qdrant database.")
         except Exception as e:
             self.logger.error(f"Failed to connect to Qdrant database: {e}")
@@ -71,23 +70,25 @@ class QdrantDBProvider(VectorDBInterface):
             self.logger.error("Qdrant client is not connected. Call connect() first.")
             return False
         try:
-            return self.client.collection_exists(collection_name)
+            return self.client.collection_exists(collection_name="{collection_name}")
         except Exception as e:
             self.logger.error(f"Failed to check if collection '{collection_name}' exists: {e}")
             return False
 
     def delete_collection(self, collection_name: str):
-        if self.is_collection_exists(collection_name):
-            return self.client.delete_collection(collection_name=collection_name)
+        if self.client and self.is_collection_exists(collection_name):
+            return self.client.delete_collection(collection_name="{collection_name}")
 
     def get_collection_info(self, collection_name: str):
-        return self.client.get_collection(collection_name=collection_name)
+        if self.client:
+            return self.client.get_collection(collection_name=collection_name)
 
     def list_all_collections(self):
-        return self.client.get_collections()
+        if self.client:
+            return self.client.get_collections()
 
     def insert_one(self, collection_name: str, text: str, vector: list,
-                   record_id: str = None, metadata: dict = None):
+                   record_id: Optional[str] = None, metadata: Optional[dict] = None):
         if not self.client:
             self.logger.error("Qdrant client is not connected. Call connect() first.")
             return False
@@ -98,6 +99,7 @@ class QdrantDBProvider(VectorDBInterface):
         try:
             self.client.upsert(
                 collection_name=collection_name,
+                wait=True,
                 points=[
                     PointStruct(
                         id=record_id,
@@ -116,7 +118,7 @@ class QdrantDBProvider(VectorDBInterface):
             return False
 
     def insert_many(self, collection_name: str, texts: list, vectors: list,
-                    metadatas: list = None, record_ids: List[str] = None, batch_size: int = 50):
+                    metadatas: Optional[list] = None, record_ids: Optional[List[str]] = None, batch_size: int = 50):
         if not self.client:
             self.logger.error("Qdrant client is not connected. Call connect() first.")
             return False
@@ -158,7 +160,7 @@ class QdrantDBProvider(VectorDBInterface):
 
         return True
 
-    def search_by_vector(self, collection_name: str, vector: list, top_k: int = 5):
+    def search_by_vector(self, collection_name: str, vector: list, top_k: int = 3):
         if not self.client:
             self.logger.error("Qdrant client is not connected. Call connect() first.")
             return None
@@ -170,7 +172,9 @@ class QdrantDBProvider(VectorDBInterface):
                 limit=top_k
             )
             self.logger.info(f"Search in '{collection_name}' completed successfully.")
-            return search_result
+            return search_result.points
+            # the query_points method returns a QueryResponse object, not just a list. 
+            # You should ensure you are returning the .points attribute, which contains the actual search hits.
         except Exception as e:
             self.logger.error(f"Failed to search in '{collection_name}': {e}")
             return None
