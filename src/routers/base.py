@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends
-from ..helpers.config import Settings, get_settings
+from helpers.config import Settings, get_settings
 
 
 router = APIRouter(

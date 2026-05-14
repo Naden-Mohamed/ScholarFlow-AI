@@ -1,25 +1,34 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from .routers import base, data, rag
+from routers import base, data, rag
 from motor.motor_asyncio import AsyncIOMotorClient
-from src.helpers.config import get_settings
-from .stores import LLMProviderFactory
-from .stores import VectorDBProviderFactory
-from .stores.llm.templates.template_parser import TemplateParser
+from helpers.config import get_settings
+from stores import LLMProviderFactory
+from stores import VectorDBProviderFactory
+from stores.llm.templates.template_parser import TemplateParser
 import os
-
+import asyncio 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     settings = get_settings()
-    app.mongodb_client = AsyncIOMotorClient(settings.MONGODB_URI)
+    app.mongodb_client = AsyncIOMotorClient(
+        settings.MONGODB_URI,
+        serverSelectionTimeoutMS=5000  # Fail after 5 seconds if no DB is found
+    )
     app.mongodb = app.mongodb_client[settings.MONGODB_DB_NAME]
+    
     try:
-        await app.mongodb_client.admin.command("ping")
+        print("Checking MongoDB connection...")
+        await asyncio.wait_for(app.mongodb_client.admin.command("ping"), timeout=5.0)
         print("Connected to MongoDB!")
+    except asyncio.TimeoutError:
+        print("MongoDB connection timed out after 5 seconds.")
+        # You can decide whether to raise the error or let the app start without DB
+        raise SystemExit("Exiting: Database unreachable.")
     except Exception as e:
-        print(f"MongoDB connection failed: {e}")  
-        raise e  
+        print(f"MongoDB connection failed: {e}")
+        raise e
 
     llm_provider_factory = LLMProviderFactory(settings)
     vector_db_provider_factory = VectorDBProviderFactory(settings)
@@ -41,13 +50,12 @@ async def lifespan(app: FastAPI):
     )
 
   
-
     yield
 
-    app.mongodb_client.close()
-    print("Disconnected from the MongoDB database!")
-    app.vector_db_client.disconnect()
-    print("Disconnected from the Qdrant Vector database!")
+    # app.mongodb_client.close()
+    # print("Disconnected from the MongoDB database!")
+    # app.vector_db_client.disconnect()
+    # print("Disconnected from the Qdrant Vector database!")
 
 
 app = FastAPI(lifespan=lifespan)

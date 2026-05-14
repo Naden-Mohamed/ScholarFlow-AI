@@ -1,7 +1,7 @@
+from bson import ObjectId
 from .BaseDataModel import BaseDataModel
 from .db_schemas.project import Project
 from .Enums.DataBaseEnum import DataBaseEnums
-from src.models.Enums import DataBaseEnum
 
 class ProjectModel(BaseDataModel):
     def __init__(self, db_client: object):
@@ -33,13 +33,13 @@ class ProjectModel(BaseDataModel):
 
     async def create_project(self, project:Project):
 
-        result = await self.collection.insert_one(project.dict(by_alias=True, exclude_unset=True))
+        result = await self.collection.insert_one(project.model_dump(by_alias=True, exclude_unset=True))
 
-# In Pydantic, by_alias and exclude_unset are parameters used when exporting a Pydantic model to a dictionary or JSON string
-# by_alias Purpose: This boolean parameter controls whether field aliases should be used as keys in the resulting dictionary or JSON.
-   
-# exclude_unset Purpose: This boolean parameter controls whether fields that were not explicitly set when the model instance was created, 
-# and thus retain their default values, should be excluded from the resulting dictionary or JSON.
+        # In Pydantic, by_alias and exclude_unset are parameters used when exporting a Pydantic model to a dictionary or JSON string
+        # by_alias Purpose: This boolean parameter controls whether field aliases should be used as keys in the resulting dictionary or JSON.
+        
+        # exclude_unset Purpose: This boolean parameter controls whether fields that were not explicitly set when the model instance was created, 
+        # and thus retain their default values, should be excluded from the resulting dictionary or JSON.
 
         project.id = result.inserted_id
         return project
@@ -48,7 +48,7 @@ class ProjectModel(BaseDataModel):
         existing_project = await self.collection.find_one({"project_id": project_id})
 
         if existing_project is None:
-            project = Project(_id = None, project_id=project_id) # How does _id val supposed to be assigned
+            project = Project(_id=ObjectId(), project_id=project_id)
             project = await self.create_project(project=project)
             return project
         

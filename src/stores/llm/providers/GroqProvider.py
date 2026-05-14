@@ -2,6 +2,7 @@ from ..LLMInterface import LLMInterface
 from ..LLMEnums import LLMEnums, GROQEnums
 from groq import Groq
 import logging
+from logging import Logger
 
 class GROQProvider(LLMInterface):
     def __init__(self, api_key: str,
@@ -24,18 +25,21 @@ class GROQProvider(LLMInterface):
 
     def set_generation_model(self, model_id: str):
         self.generation_model_id = model_id
+        self.logger.info(msg="generation model is set")
+
 
     def set_embedding_model(self, model_id: str, embedding_size: int):
         self.embedding_model_id = model_id
         self.embedding_size = embedding_size
+        self.logger.info(msg="embedding model is set")
 
     def process_text(self, text: str):
         if len(text) > self.default_input_max_characters:
             self.logger.warning(f"Input text exceeds maximum character limit of {self.default_input_max_characters}. Truncating input.")
             return text[:self.default_input_max_characters]
         return text
-    def generate_text(self, prompt: str, chat_history: list=[], max_output_tokens: int=None,
-                            temperature: float = None):
+    def generate_text(self, prompt: str, chat_history: list=[], max_output_tokens: int=0,
+                            temperature: float = 0):
         if not self.generation_model_id:
             self.logger.error("GROQ client was not set")
             return None
@@ -67,7 +71,7 @@ class GROQProvider(LLMInterface):
             self.logger.error(f"GROQ generation error: {e}")
             raise
 
-    def embed_text(self, text: str, document_type: str = None):
+    def embed_text(self, text: str, document_type: str = "None"):
         
         if not self.client:
             self.logger.error("GROQ client was not set")

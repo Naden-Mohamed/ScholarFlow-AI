@@ -1,9 +1,9 @@
 import re
 from .BaseController import BaseController
 from fastapi import UploadFile
-from src.models.Enums.ResponseEnum import ResponseStatus
+from models.Enums.ResponseEnum import ResponseStatus
 import os
-from src.controllers.ProjectController import ProjectController
+from controllers.ProjectController import ProjectController
 
 class DataController(BaseController):
     def __init__(self):
@@ -13,12 +13,12 @@ class DataController(BaseController):
         if file.content_type not in self.settings.FILE_ALLOWED_TYPES:
             return False, ResponseStatus.FILE_TYPE_NOT_SUPPORTED.value
         
-        if file.size > self.settings.FILE_MAX_SIZE_MB * 1024 * 1024:
+        if file.size is None or file.size > self.settings.FILE_MAX_SIZE_MB * 1024 * 1024 :
             return False, ResponseStatus.FILE_SIZE_EXCEEDED.value
 
         return True, ResponseStatus.FILE_VALIDATED_SUCCESSFULLY.value
 
-    def generate_unique_filename(self, original_filename: str, project_id: str = None):
+    def generate_unique_filename(self, original_filename: str, project_id: str = "None"):
         random_filename = self.generate_random_strings()
         project_path = ProjectController().get_project_path(project_id=project_id)
         cleaned_filename = self.get_clean_file_name(original_filename)

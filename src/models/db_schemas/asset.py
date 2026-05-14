@@ -10,7 +10,7 @@ class Asset(BaseModel):
     asset_name: str = Field(..., min_length=1)
     asset_size: int = Field(ge=0)
     asset_config: dict | None
-    asset_pushed_at: datetime
+    asset_pushed_at: datetime | None
 
     class Config:
         arbitrary_types_allowed = True

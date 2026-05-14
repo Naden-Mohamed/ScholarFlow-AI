@@ -7,14 +7,15 @@ class Settings(BaseSettings):
     app_name: str = "ScholarFlow AI"
     gemini_api_key: str = ""
 
-    FILE_ALLOWED_TYPES: List[str]
+    FILE_ALLOWED_TYPES: List[str] = []
     FILE_MAX_SIZE_MB: int = 10
     FILE_DEFAULT_CHUNK_SIZE: int = 512000 # 512 KB
 
-    MONGODB_URI: str
-    MONGODB_DB_NAME: str
+    MONGODB_URI: str = ""
+    MONGODB_DB_NAME: str = ""
+    COLLECTION_NAME: str = ""
 
-    GROQ_API_KEY: str
+    GROQ_API_KEY: str = ""
 
     GENERATION_BACKEND: Optional[str] = None
     EMBEDDING_BACKEND: Optional[str] = None
@@ -24,11 +25,12 @@ class Settings(BaseSettings):
     INPUT_DEFAULT_MAX_CHARACTERS: Optional[int] = None
     GENERATION_DEFAULT_MAX_TOKENS: Optional[int] = None
     GENERATION_DEFAULT_TEMPERATURE: Optional[float] = None
+    TOKENIZER_MODEL_ID: str = ""
 
     VECTOR_DB_BACKEND: Optional[str] = None
     VECTOR_DB_NAME: Optional[str] = None
-    QDRANT_URL: str
-    QDRANT_API_KEY: str
+    QDRANT_URL: str = ""
+    QDRANT_API_KEY: str = ""
     VECTOR_DB_DISTANCE_METRIC: Optional[str] = None
     
     PRIMARY_LANG: str = "en"

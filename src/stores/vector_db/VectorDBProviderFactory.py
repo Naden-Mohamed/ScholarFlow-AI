@@ -1,4 +1,4 @@
-from src.stores.vector_db.providers.QdrantProvider import QdrantDBProvider
+from stores.vector_db.providers.QdrantProvider import QdrantDBProvider
 from .VectorDBEnums import VectorDBType
 
 class VectorDBProviderFactory:

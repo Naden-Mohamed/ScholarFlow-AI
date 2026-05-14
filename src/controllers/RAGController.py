@@ -1,6 +1,6 @@
 from .BaseController import BaseController
-from src.models import Project, DataChunk
-from src.stores.llm.LLMEnums import DocumentTypeEnum
+from models import Project, DataChunk
+from stores.llm.LLMEnums import DocumentTypeEnum
 from typing import List
 import json
 
@@ -31,7 +31,7 @@ class RAGController(BaseController):
             json.dumps(collection_info, default=lambda x: x.__dict__)
         )
     
-    def insert_into_vectordb(self, project: Project, data_chunks: List[DataChunk], chunks_ids: List[int], do_reset: bool = False):
+    def insert_into_vectordb(self, project: Project, data_chunks: List[DataChunk], chunks_ids: List[int], do_reset: int = 0):
         collection_name = self.create_collection_name(project_id=project.project_id)
 
         texts = [chunk.chunk_text for chunk in data_chunks]

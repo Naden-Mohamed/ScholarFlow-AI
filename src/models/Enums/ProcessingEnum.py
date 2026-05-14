@@ -4,5 +4,5 @@ class ProcessingEnum(Enum):
     PDF = ".pdf"
     WORD = ['.doc', '.docx']
     TEXT = ".txt"
-    IMAGR = ['.jpeg', '.png']
+    IMAGE = ['.jpeg', '.png']
     PPTX = ".pptx"

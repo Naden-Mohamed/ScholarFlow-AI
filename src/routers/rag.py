@@ -1,10 +1,10 @@
 from fastapi import FastAPI, APIRouter, status, Request
 from fastapi.responses import JSONResponse
 from .schemas.data_requests import PushRequest, SearchRequest
-from src.models.ProjectModel import ProjectModel
-from src.models.ChunkModel import DataChunkModel
-from src.controllers.RAGController import RAGController
-from src.models import ResponseStatus
+from models.ProjectModel import ProjectModel
+from models.ChunkModel import DataChunkModel
+from controllers.RAGController import RAGController
+from models import ResponseStatus
 
 import logging
 
@@ -98,7 +98,7 @@ async def get_project_index_info(request: Request, project_id: str):
     )
 
     rag_controller = RAGController(
-        vectordb_client=request.app.vectordb_client,
+        vectordb_client=request.app.vector_db_client,
         generation_client=request.app.generation_client,
         embedding_client=request.app.embedding_client,
         template_parser=request.app.template_parser
@@ -125,7 +125,7 @@ async def search_index(request: Request, project_id: str, search_request: Search
     )
 
     rag_controller = RAGController(
-        vectordb_client=request.app.vectordb_client,
+        vectordb_client=request.app.vector_db_client,
         generation_client=request.app.generation_client,
         embedding_client=request.app.embedding_client,
         template_parser=request.app.template_parser
@@ -154,7 +154,7 @@ async def search_index(request: Request, project_id: str, search_request: Search
 async def answer_rag(request: Request, project_id: str, search_request: SearchRequest):
     
     project_model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.mongodb_client
     )
 
     project = await project_model.get_project_or_create_one(
@@ -162,7 +162,7 @@ async def answer_rag(request: Request, project_id: str, search_request: SearchRe
     )
 
     rag_controller = RAGController(
-        vectordb_client=request.app.vectordb_client,
+        vectordb_client=request.app.vector_db_client,
         generation_client=request.app.generation_client,
         embedding_client=request.app.embedding_client,
         template_parser=request.app.template_parser
