@@ -15,6 +15,12 @@ class Settings(BaseSettings):
     MONGODB_DB_NAME: str = ""
     COLLECTION_NAME: str = ""
 
+    POSTGRES_USERNAME: str = "postgres"
+    POSTGRES_PASSWORD: str = ""
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_MAIN_DATABASE: str = "scholarflow"
+
     GROQ_API_KEY: str = ""
 
     GENERATION_BACKEND: Optional[str] = None
