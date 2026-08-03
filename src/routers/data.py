@@ -9,7 +9,7 @@ import logging
 import aiofiles
 from routers.schemas.data_schema import DataSchema
 from models import ProjectModel, DataChunkModel,DataChunk,AssetModel
-from models.db_schemas.asset import Asset
+from models.db_schemas import Asset
 from bson.objectid import ObjectId
 from models.Enums.DataBaseEnum import DataBaseEnums
 from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
@@ -29,9 +29,9 @@ async def upload_file(
     settings: Settings = Depends(get_settings)
 ):
     # If project_id wasn't given, create one
-    project_model = await ProjectModel.create_instance(db_client=request.app.mongodb_client)
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
-    print(f"Project ID: {project.id}, Project Unique ID: {project.project_id}")
+    print(f"Project ID: {project.project_id}, Project Unique ID: {project.project_id}")
 
     # Validate file properties
     data_controller = DataController.DataController()
@@ -68,12 +68,12 @@ async def upload_file(
             }
         )
     
-    asset_model = await AssetModel.create_instance(db_client=request.app.mongodb_client)
+    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
     unique_id = ObjectId()
 
     asset = Asset(
-        _id = unique_id,
-        asset_project_id=project.id,
+        # asset_id = unique_id,
+        asset_project_id=project.project_id,
         asset_type="file",
         asset_name=file_id,
         asset_size=os.path.getsize(file_path),
@@ -81,19 +81,18 @@ async def upload_file(
                 "file_path": file_path,
                 "file_id": file_id
             },
-        asset_pushed_at = None
+        # asset_pushed_at = None
     )
     asset_record = await asset_model.create_asset(asset=asset)
-    print(f"Asset record created with ID: {asset_record.id} for file: {file.filename}")
+    print(f"Asset record created with ID: {asset_record.asset_uuid} for file: {file.filename}")
     return JSONResponse(
         status_code=status.HTTP_200_OK,
         content={
             "response_signal": ResponseStatus.FILE_UPLOADED_SUCCESSFULLY.value,
-            "file_id": str(asset_record.id),
+            "file_id": str(asset_record.asset_uuid),
             "project_id" : str(asset_record.asset_project_id )#don't expose yourself
         }
     )
-    # upload file into mongodb
 
 @data_router.post("/process/{project_id}")
 async def process_file(request: Request,project_id: str, data: DataSchema): 
@@ -102,17 +101,17 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
     chunk_overlap = data.overlap_size or 50
     do_reset = data.do_reset
 
-    project_model = await ProjectModel.create_instance(db_client=request.app.mongodb_client)
+    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
 
 
     # If file_id is given, process that file only, else process all project files
     project_files_id = {}
 
-    asset_model = await AssetModel.create_instance(db_client=request.app.mongodb_client)
+    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
 
     if data.file_id:
-        asset_record = await asset_model.get_asset_record(asset_project_id=ObjectId(project_id), asset_id=data.file_id)
+        asset_record = await asset_model.get_asset_record(asset_project_id=str(project_id), asset_id=data.file_id)
         if asset_record is None:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -121,11 +120,11 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
                 }
             )
         
-        project_files_id = { str(asset_record.id): asset_record.asset_name }
+        project_files_id = { str(asset_record.asset_uuid): asset_record.asset_name }
     else:
         
         project_files = await asset_model.get_all_project_assets(asset_project_id=project.id, asset_type="application/pdf")
-        project_files_id = { str(record.id): record.asset_name for record in project_files}
+        project_files_id = { str(record.asset_uuid): record.asset_name for record in project_files}
 
     if len(project_files_id) == 0:
         return JSONResponse(
@@ -141,22 +140,22 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
     inserted_count = 0
     files_count = 0
 
-    data_chunk_model = await DataChunkModel.create_instance(db_client=request.app.mongodb_client)
+    data_chunk_model = await DataChunkModel.create_instance(db_client=request.app.db_client)
 
     if do_reset == 1:
-        _= await data_chunk_model.delete_chunk_by_project_id(project_id=project.id)
+        _= await data_chunk_model.delete_chunks_by_project_id(project_id=ObjectId(str(project.project_id)))
 
 
-    for asset_id, file_id in project_files_id.items():
+    for asset_uuid, file_id in project_files_id.items():
         asset_record = await asset_model.get_asset_record(
-            asset_project_id=ObjectId(project_id), asset_id=data.file_id
+            asset_project_id=str(project_id), asset_id=data.file_id
         )
         if asset_record is None:
-            logger.warning(f"Asset record not found for id: {asset_id}")
+            logger.warning(f"Asset record not found for id: {asset_uuid}")
             continue
 
         if asset_record.asset_config is None:
-            logger.warning(f"Asset config is None for id: {asset_id}")
+            logger.warning(f"Asset config is None for id: {asset_uuid}")
             continue
 
         file_path = asset_record.asset_config["file_path"]
@@ -181,7 +180,7 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
 
         file_chunks_records = [
             DataChunk(
-                _id=None,
+                chunk_id=None,
                 chunk_text=chunk["text"],            
                 chunk_metadata={
                     **chunk["metadata"],
@@ -189,8 +188,8 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
                     "original_filename": file_id,
                 },
                 chunk_order=chunk["metadata"]["chunk_index"] + 1,
-                chunk_project_id=project.id,
-                chunk_asset_id=ObjectId(asset_id)
+                chunk_project_id=project.project_id,
+                chunk_asset_id=asset_uuid
             )
             for chunk in file_chunks
         ]

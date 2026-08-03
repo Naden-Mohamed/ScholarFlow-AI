@@ -18,7 +18,7 @@ class DataController(BaseController):
 
         return True, ResponseStatus.FILE_VALIDATED_SUCCESSFULLY.value
 
-    def generate_unique_filename(self, original_filename: str, project_id: str = "None"):
+    def generate_unique_filename(self, original_filename: str, project_id: str):
         random_filename = self.generate_random_strings()
         project_path = ProjectController().get_project_path(project_id=project_id)
         cleaned_filename = self.get_clean_file_name(original_filename)

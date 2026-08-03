@@ -33,12 +33,14 @@ class Settings(BaseSettings):
     GENERATION_DEFAULT_TEMPERATURE: Optional[float] = None
     TOKENIZER_MODEL_ID: str = ""
 
+    VECTOR_DB_BACKEND_LITERAL: List[str] = []
     VECTOR_DB_BACKEND: Optional[str] = None
     VECTOR_DB_NAME: Optional[str] = None
     QDRANT_URL: str = ""
     QDRANT_API_KEY: str = ""
     VECTOR_DB_DISTANCE_METRIC: Optional[str] = None
-    
+    VECTOR_DB_PGVEC_INDEX_THRESHOLD: int = 100
+
     PRIMARY_LANG: str = "en"
     DEFAULT_LANG: str = "en"
     

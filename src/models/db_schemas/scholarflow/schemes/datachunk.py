@@ -17,11 +17,11 @@ class DataChunk(SQLAlchemyBase):
     chunk_metadata = Column(JSONB, nullable=True)
     chunk_order = Column(Integer, nullable=False)
 
-    chunk_project_id = Column(Integer, ForeignKey("projects.project_id"), nullable=False)
-    chunk_asset_id = Column(Integer, ForeignKey("assets.asset_id"), nullable=False)
+    chunk_project_id = Column(String, ForeignKey("projects.project_id"), nullable=False)
+    chunk_asset_id = Column(UUID(as_uuid=True), ForeignKey("assets.asset_uuid"), nullable=False)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
 
     project = relationship("Project", back_populates="chunks")
     asset = relationship("Asset", back_populates="chunks")

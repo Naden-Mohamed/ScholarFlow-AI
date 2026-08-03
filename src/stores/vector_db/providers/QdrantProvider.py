@@ -30,6 +30,7 @@ class QdrantDBProvider(VectorDBInterface):
         except Exception as e:
             self.logger.error(f"Failed to connect to Qdrant database: {e}")
             self.client = None
+            
 
     def disconnect(self):
         if self.client:

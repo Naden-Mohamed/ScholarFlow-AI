@@ -2,6 +2,7 @@ from ..LLMInterface import LLMInterface
 from ..LLMEnums import DocumentTypeEnum
 from sentence_transformers import SentenceTransformer
 import logging
+from typing import List , Union, Optional
 
 class BGEProvider(LLMInterface):
     def __init__(self,
@@ -27,7 +28,7 @@ class BGEProvider(LLMInterface):
     def set_embedding_model(self, model_id: str, embedding_size: int):
         self.embedding_model_id = model_id
         self.embedding_size = embedding_size
-        # ✅ Load the model locally via sentence-transformers
+        # Load the model locally via sentence-transformers
         try:
             self.client = SentenceTransformer(
                 model_id,
@@ -47,11 +48,12 @@ class BGEProvider(LLMInterface):
         return text
 
     def generate_text(self, prompt: str, chat_history: list = [],
-                      max_output_tokens: int = None, temperature: float = None):
+                      max_output_tokens: Optional[int] = None, temperature: Optional[float] = None):
         self.logger.error("BGE models do not support text generation.") 
         return None
 
-    def embed_text(self, text: str, document_type: str = None):
+    # Batch Embedding
+    def embed_text(self, text: Union[str, List[str]], document_type: str = ""):
         if not self.client:
             self.logger.error("BGE model is not loaded. Call set_embedding_model() first.")
             return None
@@ -59,11 +61,14 @@ class BGEProvider(LLMInterface):
         if not self.embedding_model_id:
             self.logger.error("Embedding model for BGE was not set.")
             return None
+        
+        if isinstance(text, str):
+            text = [text]
 
         try:
-            text = self.process_text(text)
+            text = [self.process_text(t) for t in text]
 
-            # ✅ bge-multilingual-gemma2 uses instruction-based embedding
+            # bge-multilingual-gemma2 uses instruction-based embedding
             # document_type differentiates query vs passage for better accuracy
             if document_type == DocumentTypeEnum.QUERY.value:
                 instruction = "Represent this query for searching relevant passages: "
@@ -71,15 +76,15 @@ class BGEProvider(LLMInterface):
                 instruction = "Represent this passage for retrieval: "
 
             embedding = self.client.encode(
-                instruction + text,
-                normalize_embeddings=True  # ✅ recommended for BGE models
+                [instruction + t for t in text],
+                normalize_embeddings=True  # recommended for BGE models
             )
 
             if embedding is None or len(embedding) == 0:
                 self.logger.error("BGE embedding returned empty result.")
                 return None
 
-            return embedding.tolist()  # ✅ convert numpy array to list
+            return [f for f in embedding]
 
         except Exception as e:
             self.logger.error(f"BGE embedding error: {e}")

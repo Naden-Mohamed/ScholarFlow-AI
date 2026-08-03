@@ -25,6 +25,6 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 def setup_metrics(app: FastAPI):
     app.add_middleware(PrometheusMiddleware)
     
-    @app.get("/TrhBVe_m5gg2002_E5VVqS", include_in_schema=False)
+    @app.get("/TrhBVe_m5gg2002_E5VVqS", include_in_schema=False)# to not be included in the docs, it doesn't have to be exposed
     def metrics():
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
