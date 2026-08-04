@@ -23,7 +23,7 @@ RUN uv pip install -r requirements.txt --system
 COPY src/ .
 
 # Create directory structure for Alembic
-RUN mkdir -p /app/models/db_schemes/scholarflow/
+RUN mkdir -p /app/models/db_schemas/scholarflow/
 
 COPY docker/scholarflow/alembic.ini /app/models/db_schemas/scholarflow/alembic.ini
 
@@ -33,6 +33,6 @@ RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
 
 # Command to run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 # remove --reload because it disable workers feature that assign icoming request to multiple workers
 # to handle more requests at a time, more workers consume more memory and processing

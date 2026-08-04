@@ -10,9 +10,11 @@ set -e
 # but this -e raise error and stops running
 
 echo "Running database migrations..."
-cd /app/models/db_schemes/minirag/
+cd /app/models/db_schemas/scholarflow/
 alembic upgrade head
 cd /app
+
+exec "$@"
 
 # it's a separated script used to run commands we want to execute after docker image build
 # not through the process of building 

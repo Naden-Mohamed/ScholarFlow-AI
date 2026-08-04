@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     POSTGRES_USERNAME: str = "postgres"
     POSTGRES_PASSWORD: str = ""
-    POSTGRES_HOST: str = "localhost"
+    POSTGRES_HOST: str = "pgvector"
     POSTGRES_PORT: int = 5432
     POSTGRES_MAIN_DATABASE: str = "scholarflow"
 
