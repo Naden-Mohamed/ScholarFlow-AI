@@ -1,5 +1,4 @@
 import os
-from bson import ObjectId
 from helpers.config import get_settings, Settings
 from fastapi import APIRouter, UploadFile, Depends, status, Request
 from fastapi.responses import JSONResponse
@@ -10,9 +9,7 @@ import aiofiles
 from routers.schemas.data_schema import DataSchema
 from models import ProjectModel, DataChunkModel,DataChunk,AssetModel
 from models.db_schemas import Asset
-from bson.objectid import ObjectId
-from models.Enums.DataBaseEnum import DataBaseEnums
-from docling_core.transforms.serializer.markdown import MarkdownDocSerializer
+from datetime import datetime
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -29,7 +26,7 @@ async def upload_file(
     settings: Settings = Depends(get_settings)
 ):
     # If project_id wasn't given, create one
-    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project_model = await ProjectModel.create_instance(db_client=request.app.state.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
     print(f"Project ID: {project.project_id}, Project Unique ID: {project.project_id}")
 
@@ -68,20 +65,17 @@ async def upload_file(
             }
         )
     
-    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
-    unique_id = ObjectId()
+    asset_model = await AssetModel.create_instance(db_client=request.app.state.db_client)
 
     asset = Asset(
-        # asset_id = unique_id,
         asset_project_id=project.project_id,
-        asset_type="file",
+        asset_type=file.content_type,
         asset_name=file_id,
         asset_size=os.path.getsize(file_path),
         asset_config= {
                 "file_path": file_path,
                 "file_id": file_id
             },
-        # asset_pushed_at = None
     )
     asset_record = await asset_model.create_asset(asset=asset)
     print(f"Asset record created with ID: {asset_record.asset_uuid} for file: {file.filename}")
@@ -89,7 +83,7 @@ async def upload_file(
         status_code=status.HTTP_200_OK,
         content={
             "response_signal": ResponseStatus.FILE_UPLOADED_SUCCESSFULLY.value,
-            "file_id": str(asset_record.asset_uuid),
+            "file_id": file_id,
             "project_id" : str(asset_record.asset_project_id )#don't expose yourself
         }
     )
@@ -101,14 +95,14 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
     chunk_overlap = data.overlap_size or 50
     do_reset = data.do_reset
 
-    project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
+    project_model = await ProjectModel.create_instance(db_client=request.app.state.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
 
 
     # If file_id is given, process that file only, else process all project files
-    project_files_id = {}
+    project_files_id = []
 
-    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
+    asset_model = await AssetModel.create_instance(db_client=request.app.state.db_client)
 
     if data.file_id:
         asset_record = await asset_model.get_asset_record(asset_project_id=str(project_id), asset_id=data.file_id)
@@ -120,11 +114,11 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
                 }
             )
         
-        project_files_id = { str(asset_record.asset_uuid): asset_record.asset_name }
+        project_files_id = [(asset_record.asset_uuid, asset_record.asset_config)]
     else:
         
-        project_files = await asset_model.get_all_project_assets(asset_project_id=project.id, asset_type="application/pdf")
-        project_files_id = { str(record.asset_uuid): record.asset_name for record in project_files}
+        project_files = await asset_model.get_all_project_assets(asset_project_id=str(project.project_id), asset_type="application/pdf")
+        project_files_id = [(record.asset_uuid, record.asset_config) for record in project_files]
 
     if len(project_files_id) == 0:
         return JSONResponse(
@@ -139,33 +133,32 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
 
     inserted_count = 0
     files_count = 0
+    failed_files = []  # so callers/logs can see *why* it was a no-op
 
-    data_chunk_model = await DataChunkModel.create_instance(db_client=request.app.db_client)
+    data_chunk_model = await DataChunkModel.create_instance(db_client=request.app.state.db_client)
 
     if do_reset == 1:
-        _= await data_chunk_model.delete_chunks_by_project_id(project_id=ObjectId(str(project.project_id)))
+        _= await data_chunk_model.delete_chunks_by_project_id(project_id=str(project.project_id))
 
 
-    for asset_uuid, file_id in project_files_id.items():
-        asset_record = await asset_model.get_asset_record(
-            asset_project_id=str(project_id), asset_id=data.file_id
-        )
-        if asset_record is None:
-            logger.warning(f"Asset record not found for id: {asset_uuid}")
+    for asset_uuid, asset_config in project_files_id:
+        if not asset_config:
+            logger.warning(f"Asset config missing for id: {asset_uuid}")
+            failed_files.append(str(asset_uuid))
             continue
+        
+        file_path = asset_config.get("file_path")
+        file_id = asset_config.get("file_id", "Not found")
 
-        if asset_record.asset_config is None:
-            logger.warning(f"Asset config is None for id: {asset_uuid}")
-            continue
-
-        file_path = asset_record.asset_config["file_path"]
         if not file_path or not os.path.exists(file_path):
             logger.warning(f"File not found on disk: {file_path}")
+            failed_files.append(file_id)
             continue
 
         file_content = process_controller.get_file_content(file_path=file_path)
         if file_content is None:
             logger.warning(f"Could not parse file: {file_path}")
+            failed_files.append(file_id)
             continue
 
         file_chunks = process_controller.get_chunks(
@@ -176,6 +169,7 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
 
         if not file_chunks:
             logger.warning(f"No chunks produced for file: {file_path}")
+            failed_files.append(file_id)
             continue
 
         file_chunks_records = [
@@ -197,6 +191,16 @@ async def process_file(request: Request,project_id: str, data: DataSchema):
         inserted_count += await data_chunk_model.insert_many_chunks(chunks=file_chunks_records)
         files_count += 1
 
+    if files_count == 0:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "response_signal": ResponseStatus.FILE_PROCESSING_FAILED.value,
+                "processed_chunks": inserted_count,
+                "processed_files_count": files_count,
+                "failed_files": failed_files,
+            },
+        )
     return JSONResponse(
             content={  
                 "response_signal": ResponseStatus.FILE_PROCESSED_SUCCESSFULLY.value,

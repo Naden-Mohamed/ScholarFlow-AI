@@ -5,6 +5,7 @@ from typing import List
 from models.db_schemas.scholarflow.schemes.datachunk import RetrievedDocument
 from sqlalchemy.sql import text as sql_text
 import json
+import numpy as np
 
 class PGVectorProvider(VectorDBInterface):
 
@@ -240,26 +241,27 @@ class PGVectorProvider(VectorDBInterface):
                     batch_texts = texts[i:i+batch_size]
                     batch_vectors = vectors[i:i + batch_size]
                     batch_metadata = metadata[i:i + batch_size]
-                    batch_record_ids = record_ids[i:i + batch_size]
 
                     values = []
-
-                    for _text, _vector, _metadata, _record_id in zip(batch_texts, batch_vectors, batch_metadata, batch_record_ids):
+                    
+                    for _text, _vector, _metadata in zip(batch_texts, batch_vectors, batch_metadata):
                         
                         metadata_json = json.dumps(_metadata, ensure_ascii=False) if _metadata is not None else "{}"
+                        self.logger.info(f" collection: {_text, _vector,_metadata}")
+                        self.logger.info(f"===========================================================")
+
+
                         values.append({
                             'text': _text,
-                            'vector': "[" + ",".join([ str(v) for v in _vector ]) + "]",
+                            'vector': ",".join([ str(v.tolist()) for v in _vector ]),
                             'metadata': metadata_json,
-                            'chunk_id': _record_id
                         })
                     
                     batch_insert_sql = sql_text(f'INSERT INTO {collection_name} '
                                     f'({PgVectorTableSchemeEnums.TEXT.value}, '
                                     f'{PgVectorTableSchemeEnums.VECTOR.value}, '
-                                    f'{PgVectorTableSchemeEnums.METADATA.value}, '
-                                    f'{PgVectorTableSchemeEnums.CHUNK_ID.value}) '
-                                    f'VALUES (:text, :vector, :metadata, :chunk_id)')
+                                    f'{PgVectorTableSchemeEnums.METADATA.value}) '
+                                    f'VALUES (:text, :vector, :metadata)')
                     
                     await session.execute(batch_insert_sql, values)
 
@@ -274,21 +276,23 @@ class PGVectorProvider(VectorDBInterface):
             self.logger.error(f"Can not search for records in a non-existed collection: {collection_name}")
             return False
         
-            if isinstance(vector, np.ndarray):
-                vector = vector.flatten().tolist()
+
+        # Flatten if vector is 2D (e.g. [[0.1, 0.2, ...]])
+        if isinstance(vector, list) and len(vector) > 0 and isinstance(vector[0], list):
+            vector = vector[0]
 
         # keep original vector as list; build a string representation for SQL parameter
-        vector_text = "[" + ",".join(str(v) for v in vector) + "]"
+        vector_text =",".join([ str(v.tolist()) for v in vector ])
         async with self.db_client() as session:
             async with session.begin():
                 search_sql = sql_text(f'''
                 SELECT {PgVectorTableSchemeEnums.TEXT.value} as text,
-                       1 - ({PgVectorTableSchemeEnums.VECTOR.value} <=> :vector::vector) as score
+                       1 - ({PgVectorTableSchemeEnums.VECTOR.value} <=> CAST(:vector AS vector)) as score
                 FROM {collection_name}
                 ORDER BY score DESC
                 LIMIT {limit}
             ''')
-                result = await session.execute(search_sql, {"vector": vector_text})
+                result = await session.execute(search_sql,{"vector": vector_text})
 
                 records = result.fetchall()
 

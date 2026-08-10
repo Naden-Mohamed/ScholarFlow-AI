@@ -1,6 +1,7 @@
 from .BaseController import BaseController
 from models import Project, DataChunk
 from stores.llm.LLMEnums import DocumentTypeEnum, GROQEnums
+from utils.metrics import RAG_EMPTY_RETRIEVAL, RAG_TOP_SCORE
 from typing import List
 import json
 
@@ -49,14 +50,16 @@ class RAGController(BaseController):
             do_reset=do_reset,
         )
 
+
+
         # step4: insert into vector db
         _ = await self.vectordb_client.insert_many(
             collection_name=collection_name,
             texts=texts,
-            metadatas=metadata,
+            metadata=metadata,
             vectors=vectors,
             record_ids=chunks_ids,
-            batch_size=50
+            batch_size=100
         )
 
         return True
@@ -69,7 +72,8 @@ class RAGController(BaseController):
         vector = self.embedding_client.embed_text(text=text, 
                                                  document_type=DocumentTypeEnum.QUERY.value)
 
-        if not vector or len(vector) == 0:
+        if not vector.any() or len(vector) == 0:
+            RAG_EMPTY_RETRIEVAL.inc()
             return False
 
         results = await self.vectordb_client.search_by_vector(
@@ -79,7 +83,10 @@ class RAGController(BaseController):
         )
 
         if not results:
+            RAG_EMPTY_RETRIEVAL.inc()
             return False
+
+        RAG_TOP_SCORE.observe(results[0].score)
 
         return results
     
@@ -103,7 +110,7 @@ class RAGController(BaseController):
         documents_prompts = "\n".join([
             self.template_parser.get("prompts", "document_prompt", {
                     "doc_num": idx + 1,
-                    "chunk_text": doc.payload.get("text", "No content available"),
+                    "chunk_text": doc.text if hasattr(doc, "text") else doc.payload.get("text", "No content available"),
             })
             for idx, doc in enumerate(retrieved_documents)
         ])

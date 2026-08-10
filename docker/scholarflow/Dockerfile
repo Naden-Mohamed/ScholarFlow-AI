@@ -36,3 +36,7 @@ ENTRYPOINT ["/entrypoint.sh"]
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 # remove --reload because it disable workers feature that assign icoming request to multiple workers
 # to handle more requests at a time, more workers consume more memory and processing
+
+# Binding to --host localhost (or 127.0.0.1) forces Uvicorn to only listen on the container's
+# internal loopback interface. This blocks your host machine (and Docker network routing) 
+# from accessing the service from outside the container. so (0.0.0.0) is more correct

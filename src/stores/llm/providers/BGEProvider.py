@@ -84,7 +84,7 @@ class BGEProvider(LLMInterface):
                 self.logger.error("BGE embedding returned empty result.")
                 return None
 
-            return [f for f in embedding]
+            return embedding
 
         except Exception as e:
             self.logger.error(f"BGE embedding error: {e}")

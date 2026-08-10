@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     QDRANT_API_KEY: str = ""
     VECTOR_DB_DISTANCE_METRIC: Optional[str] = None
     VECTOR_DB_PGVEC_INDEX_THRESHOLD: int = 100
+    TEST_SET_PATH: str = "C:/Users/start/OneDrive/Desktop/ScholarFlow AI/src/evaluation/testset/qa_pairs.json"
 
     PRIMARY_LANG: str = "en"
     DEFAULT_LANG: str = "en"

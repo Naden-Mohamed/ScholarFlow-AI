@@ -7,6 +7,16 @@ import time
 
 REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP Requests', ['method', 'endpoint', 'status'])
 REQUEST_LATENCY = Histogram('http_request_duration_seconds', 'HTTP Request Latency', ['method', 'endpoint'])
+RAG_EMPTY_RETRIEVAL = Counter(
+    'rag_empty_retrieval_total',
+    'Queries with no retrieved docs'
+)
+
+RAG_TOP_SCORE = Histogram(
+    'rag_top_retrieval_score',
+    'Score of top retrieved chunk',
+    buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+)
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:

@@ -21,11 +21,11 @@ rag_router = APIRouter(
 async def index_project(request: Request, project_id: str, push_request: PushRequest):
 
     project_model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.state.db_client
     )
 
     chunk_model = await DataChunkModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.state.db_client
     )
 
     project = await project_model.get_project_or_create_one(
@@ -41,10 +41,10 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
         )
     
     rag_controller = RAGController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser
+        vectordb_client=request.app.state.vectordb_client,
+        generation_client=request.app.state.generation_client,
+        embedding_client=request.app.state.embedding_client,
+        template_parser=request.app.state.template_parser
     )
 
 
@@ -56,9 +56,9 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
     # create collection if not exists
     collection_name = rag_controller.create_collection_name(project_id=str(project.project_id))
 
-    _ = await request.app.vectordb_client.create_collection(
+    _ = await request.app.state.vectordb_client.create_collection(
         collection_name=collection_name,
-        embedding_size=request.app.embedding_client.embedding_size,
+        embedding_size=request.app.state.embedding_client.embedding_size,
         do_reset=push_request.do_reset,
     )
 
@@ -107,7 +107,7 @@ async def index_project(request: Request, project_id: str, push_request: PushReq
 async def get_project_index_info(request: Request, project_id: str):
     
     project_model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.state.db_client
     )
 
     project = await project_model.get_project_or_create_one(
@@ -115,10 +115,10 @@ async def get_project_index_info(request: Request, project_id: str):
     )
 
     rag_controller = RAGController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser
+        vectordb_client=request.app.state.vectordb_client,
+        generation_client=request.app.state.generation_client,
+        embedding_client=request.app.state.embedding_client,
+        template_parser=request.app.state.template_parser
     )
 
     collection_info = await rag_controller.get_vector_db_collection_info(project=project)
@@ -134,7 +134,7 @@ async def get_project_index_info(request: Request, project_id: str):
 async def search_index(request: Request, project_id: str, search_request: SearchRequest):
     
     project_model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.state.db_client
     )
 
     project = await project_model.get_project_or_create_one(
@@ -142,10 +142,10 @@ async def search_index(request: Request, project_id: str, search_request: Search
     )
 
     rag_controller = RAGController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser
+        vectordb_client=request.app.state.vectordb_client,
+        generation_client=request.app.state.generation_client,
+        embedding_client=request.app.state.embedding_client,
+        template_parser=request.app.state.template_parser
     )
 
     results = await rag_controller.search_vector_db_collection(
@@ -172,7 +172,7 @@ async def search_index(request: Request, project_id: str, search_request: Search
 async def answer_rag(request: Request, project_id: str, search_request: SearchRequest):
     
     project_model = await ProjectModel.create_instance(
-        db_client=request.app.db_client
+        db_client=request.app.state.db_client
     )
 
     project = await project_model.get_project_or_create_one(
@@ -180,10 +180,10 @@ async def answer_rag(request: Request, project_id: str, search_request: SearchRe
     )
 
     rag_controller = RAGController(
-        vectordb_client=request.app.vectordb_client,
-        generation_client=request.app.generation_client,
-        embedding_client=request.app.embedding_client,
-        template_parser=request.app.template_parser
+        vectordb_client=request.app.state.vectordb_client,
+        generation_client=request.app.state.generation_client,
+        embedding_client=request.app.state.embedding_client,
+        template_parser=request.app.state.template_parser
     )
 
     answer, full_prompt, chat_history = await rag_controller.answer_rag_question(
