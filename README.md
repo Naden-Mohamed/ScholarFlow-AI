@@ -1,212 +1,188 @@
 # ScholarFlow AI
 
-An intelligent **multimodal learning assistant** that transforms raw educational content (PDFs, slides, notes, images) into an **interactive, personalized learning experience** using advanced **RAG (Retrieval-Augmented Generation)** and **LLM-based reasoning**.
+A backend Retrieval-Augmented Generation (RAG) system for document question-answering, built with FastAPI. Upload documents, index them into a vector database, and ask natural-language questions answered using retrieved context from the source material.
+
+The system is built around a **provider-factory architecture** — the LLM backend and vector database are swappable through configuration rather than code changes — and is fully containerized with a production-style observability stack (Prometheus + Grafana) alongside the application.
 
 ---
 
-## Overview
+## Features
 
-ScholarFlow AI is designed to go beyond traditional Q&A systems by acting as a **true learning companion**. It ingests and understands complex educational materials, builds structured knowledge representations, and supports:
-
-* Context-aware question answering
-* Concept-based retrieval
-* Personalized explanations
-* Adaptive follow-up questions
-* Multimodal understanding (text + images + charts)
-
----
-
-##  Core Features
-
-###  Intelligent Retrieval (Hybrid Search)
-
-* Combines **dense embeddings + sparse retrieval (BM25)**
-* Supports **HyDE (Hypothetical Document Embeddings)** for better recall
-* Uses **reranking (cross-encoder)** for high-precision results
+- **Document ingestion pipeline** — PDF parsing via [Docling](https://github.com/docling-project/docling), with structural understanding of tables, figures, and equations, not just flat text extraction.
+- **Context-aware chunking** — uses Docling's `HybridChunker` with heading-aware contextualization, so each chunk carries its section path (e.g. *"Chapter 2 → Methodology"*) alongside the raw text, plus metadata: page numbers, element types, token count, and chunk type (table / figure caption / equation / text).
+- **Pluggable LLM backends** — generation and embedding clients are created through a provider factory, currently supporting **Groq** and **Gemini** for generation, and **BGE** for embeddings, selected entirely via environment configuration.
+- **Pluggable vector database backends** — supports both **PostgreSQL (pgvector)** and **Qdrant** as interchangeable vector stores, selected via configuration.
+- **RAG query pipeline** — indexes document chunks into the configured vector store, retrieves the most relevant chunks for a query, and generates a grounded answer using the retrieved context.
+- **Evaluation harness** — an offline evaluation pipeline measuring both retrieval quality (hit rate, MRR against a curated question set) and generation quality (RAGAS-based faithfulness, answer relevancy, context precision/recall).
+- **Observability** — Prometheus metrics and Grafana dashboards covering both standard HTTP request metrics and RAG-specific signals (empty-retrieval rate, top-retrieval-score distribution), instrumented directly in the retrieval path.
+- **Containerized, multi-service deployment** — Docker Compose orchestrates the API, PostgreSQL/pgvector, Qdrant, an Nginx reverse proxy, Prometheus, Grafana, and metrics exporters for Postgres and system-level stats.
 
 ---
 
-###  Hierarchical Chunking
+## Architecture
 
-* Splits documents into:
+```
+                        ┌──────────┐
+                        │  Nginx   │  (reverse proxy, :80)
+                        └────┬─────┘
+                             │
+                        ┌────▼─────┐
+                        │ FastAPI  │  (:8000)
+                        └────┬─────┘
+              ┌──────────────┼──────────────┐
+              │              │              │
+        ┌─────▼─────┐  ┌─────▼─────┐  ┌─────▼──────┐
+        │ PostgreSQL │  │  Qdrant   │  │  LLM APIs  │
+        │ (pgvector) │  │ (vectors) │  │ Groq/Gemini│
+        └────────────┘  └───────────┘  └────────────┘
 
-  * Sections → Paragraphs → Sub-chunks
-* Maintains relationships:
-
-  * `parent_chunk_id`
-  * `sibling_chunk_ids`
-
- Enables **small-to-big retrieval** for precise + contextual answers
-
----
-
-###  Multimodal Understanding
-
-* Handles:
-
-  * Text
-  * Images
-  * Tables
-  * Charts/graphs
-* Uses vision-capable LLMs to generate:
-
-  * Image captions
-  * Chart interpretations
-
----
-
-###  Source-Aware Responses
-
-* Every answer includes citations:
-
-```text
-Example: "Gradient descent minimizes loss iteratively [Slide 7]"
+        ┌────────────┐   ┌──────────┐
+        │ Prometheus │──▶│ Grafana  │
+        └────────────┘   └──────────┘
 ```
 
----
+The application layer follows a **controller/router/model** separation:
 
-###  Adaptive Learning Features
-
-####  Follow-up Questions
-
-Generated across 3 levels:
-
-* Recall
-* Conceptual understanding
-* Application (real-world)
+- **`routers/`** — FastAPI route definitions (`data`, `rag`, `base`), handling request validation and response shaping.
+- **`controllers/`** — business logic (`ProcessController` for document parsing/chunking, `RAGController` for indexing/retrieval/generation, `ProjectController`, `DataController`).
+- **`models/`** — data access layer for projects, assets, and chunks.
+- **`stores/`** — provider implementations behind factory interfaces for LLM clients (`stores/llm/`) and vector database clients (`stores/vector_db/`), so a new backend can be added by implementing the provider interface without touching controller logic.
+- **`evaluation/`** — standalone evaluation harness, independent of the running API, for measuring retrieval and generation quality against a golden dataset.
 
 ---
 
-####  Re-Explain Feature
+## Tech Stack
 
-* Student explains a concept
-* System:
-
-  * Compares against ground truth
-  * Detects gaps
-  * Responds Socratically
-
----
-
-####  Voice Learning Support
-
-* Text-to-Speech with **SSML control**
-* Speech-to-Text for student input
-
----
-
-###  Multilingual Support
-
-* Internal processing in English
-* Output translated to user’s preferred language
-* Language stored in user profile
+| Layer | Technology |
+|---|---|
+| API framework | FastAPI, Uvicorn |
+| Document parsing | Docling (PDF parsing, table/figure structure extraction) |
+| Chunking | Docling `HybridChunker` with HuggingFace tokenizer-aware splitting |
+| Embeddings | BGE (via `sentence-transformers`) |
+| Generation | Groq, Gemini |
+| Vector storage | PostgreSQL + pgvector, or Qdrant (configurable) |
+| Relational storage | PostgreSQL (SQLAlchemy async ORM, Alembic migrations) |
+| Evaluation | RAGAS, custom retrieval metrics |
+| Observability | Prometheus, Grafana, `prometheus-client` |
+| Containerization | Docker, Docker Compose |
+| Reverse proxy | Nginx |
 
 ---
 
-###  Persistent Learning Memory
+## API Endpoints
 
-* Tracks:
-
-  * Concepts learned
-  * Weak areas
-* Uses a **knowledge graph** to model:
-
-  * Concept dependencies
-  * Learning progression
-
----
-
-##  System Architecture
-
-<img width="1155" height="740" alt="ScholarFlow system design" src="https://github.com/user-attachments/assets/723689dd-c611-489d-87ab-112f0a14271d" />
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/` | Application status/info |
+| `GET` | `/api/health` | Health check |
+| `POST` | `/data/upload/{project_id}` | Upload a document to a project |
+| `POST` | `/data/process/{project_id}` | Parse and chunk uploaded document(s) into the relational store |
+| `POST` | `/api/rag/index/push/{project_id}` | Embed and index a project's chunks into the vector database |
+| `GET` | `/api/rag/index/info/{project_id}` | Get vector collection info for a project |
+| `POST` | `/api/rag/index/search/{project_id}` | Semantic search over a project's indexed chunks |
+| `POST` | `/api/rag/index/answer/{project_id}` | Ask a question, answered using retrieved context |
 
 ---
 
-##  Metadata Schema
+## Getting Started
 
-Each chunk contains:
+### Prerequisites
+- Docker and Docker Compose
+- API keys for your chosen LLM provider (Groq and/or Gemini)
 
-```json
-{
-  "chunk_id": "uuid",
-  "text_content": "...",
-  "chunk_type": "text | table | image_caption | formula",
-  "page_num": 5,
-  "has_image": true,
-  "importance_score": 0.85,
-  "language_detected": "en",
-  "parent_chunk_id": "uuid",
-  "sibling_chunk_ids": ["uuid1", "uuid2"]
-}
-```
-
----
-
-##  Tech Stack
-
-### Core Components
-
-* **Parser:** Docling / Unstructured.io
-* **Embeddings:** OpenAI (`text-embedding-3-large`)
-* **Vector DB:** Qdrant
-* **Document Store:** MongoDB
-* **Cache / Sessions:** Redis
-* **Memory Graph:** Neo4j
-
----
-
-### AI & ML
-
-* **LLM:** GPT-4o / Claude 3.5 Sonnet
-* **Reranker:** Cohere Rerank API
-* **Speech-to-Text:** Whisper
-* **Text-to-Speech:** ElevenLabs / Azure TTS
-
----
-
-## ⚙️ Installation
+### Setup
 
 ```bash
 git clone https://github.com/Naden-Mohamed/ScholarFlow-AI.git
 cd ScholarFlow-AI
+```
 
-pip install -r requirements.txt
+Create the required environment files under `docker/env/` (see `docker/env/*.env.example` for the expected variables): `.env.app`, `.env.postgres`, `.env.grafana`, `.env.postgres-exporter`.
+
+Key variables in `.env.app`:
+```dotenv
+POSTGRES_HOST=pgvector          # service name on the Docker network, not localhost
+QDRANT_URL=qdrant:6333
+VECTOR_DB_BACKEND=PGVECTOR       # or QDRANT
+GENERATION_BACKEND=GROQ          # or GEMINI
+EMBEDDING_BACKEND=BGE
+```
+
+### Run
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+This builds and starts the full stack. The API is available at `http://localhost:8000` (or via Nginx at `http://localhost/`), Prometheus at `http://localhost:9090`, and Grafana at `http://localhost:3000`.
+
+Database migrations run automatically on container start via the app's entrypoint script before the server starts.
+
+---
+
+## Evaluation
+
+The `src/evaluation/` module provides an offline harness for measuring RAG quality independent of the running API:
+
+- **Retrieval metrics** (`evaluation/metrics/retrieval_metrics.py`) — hit rate and MRR computed against a curated question set (`evaluation/testset/qa_pairs.json`).
+- **Generation metrics** (`evaluation/metrics/generation_metrics.py`) — RAGAS-based faithfulness, answer relevancy, context precision, and context recall.
+
+Run it with:
+```bash
+python -m evaluation.run_eval
 ```
 
 ---
 
-## ▶️ Usage
+## Monitoring
 
-```python
-# Example flow
-1. Upload document
-2. System parses & chunks
-3. Embeddings stored in Qdrant
-4. Ask a question
-5. Hybrid retrieval + reranking
-6. LLM generates answer with citations
+Beyond standard HTTP request count/latency metrics, the application exposes RAG-specific Prometheus metrics instrumented directly in the retrieval path:
+
+- `rag_empty_retrieval_total` — counts queries that returned no retrieved documents.
+- `rag_top_retrieval_score` — histogram of the top retrieved chunk's similarity score per query.
+
+These are scraped by Prometheus and can be visualized in Grafana alongside system-level metrics from `node-exporter` and `postgres-exporter`.
+
+---
+
+## Project Structure
+
+```
+ScholarFlow-AI/
+├── docker/
+│   ├── docker-compose.yml
+│   ├── scholarflow/          # FastAPI Dockerfile + entrypoint
+│   ├── nginx/
+│   └── prometheus/
+├── src/
+│   ├── main.py                # App entrypoint, lifespan-managed client setup
+│   ├── controllers/           # Business logic
+│   ├── routers/                # API route definitions
+│   ├── models/                 # Data access layer
+│   │   └── db_schemas/scholarflow/  # SQLAlchemy models + Alembic migrations
+│   ├── stores/
+│   │   ├── llm/                # LLM provider factory + implementations
+│   │   └── vector_db/          # Vector DB provider factory + implementations
+│   ├── evaluation/             # Retrieval/generation evaluation harness
+│   ├── utils/                  # Prometheus metrics setup
+│   └── helpers/                # Config, client bootstrap
+└── README.md
 ```
 
 ---
 
-##  Example Query
+## Roadmap
 
-```text
-User: "Explain gradient descent simply"
-```
+Features under active development, not yet implemented:
 
-```text
-Response:
-Gradient descent is an optimization algorithm used to minimize loss functions [Slide 7].
+- Hybrid retrieval (dense + BM25) with cross-encoder reranking
+- Cross-document comparison and structured multi-paper analysis
+- Section-aware retrieval filtering (chunk metadata already captures section headings; filtering by section is not yet exposed via the API)
+- Citation-grounded generation with explicit source attribution in responses
+- CI/CD pipeline (automated linting, testing, and evaluation gating on pull requests)
 
-Follow-up:
-- What happens if the learning rate is too high?
-- Can you explain it in your own words?
-```
 ---
 
-## 📄 License
+## License
 
 MIT License
-
----
