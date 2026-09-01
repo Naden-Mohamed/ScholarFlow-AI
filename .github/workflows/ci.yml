@@ -1,0 +1,81 @@
+name: CI pipeline
+
+on:
+  push:
+    branches:
+      - ["main"]
+    paths:
+    - 'src/**'
+    - 'docker/Dockerfile'
+    - 'requirements.txt'
+    - "alembic/**"
+    - ".github/workflows/**"
+
+  pull-request:
+    branches:
+      - ["main"]
+    paths:
+    - 'src/**'
+    - 'docker/Dockerfile'
+    - 'requirements.txt'
+    - "alembic/**"
+    - ".github/workflows/**"
+
+concurrency:
+  group: scholarflow-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+
+jobs:
+  continous-integration:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone code
+        uses: actions/checkout@v4
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.3"
+          cache: "pip"
+
+      - name: Install Dependencies
+        runs: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+  unit-tests:
+    name: Unit testing
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone code
+        uses: actions/checkout@v4
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14.3"
+          cache: "pip"
+
+      - name: Install Dependencies
+        runs: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run unit tests
+        run: |
+          pytest tests/unit \
+            -m unit \
+            --cov=src \
+            --cov-report=term-missing \
+            --cov-report=xml \
+            --cov-fail-under=70
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-coverage
+          path: coverage.xml
