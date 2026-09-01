@@ -1,20 +1,25 @@
-from ..LLMInterface import LLMInterface
-from ..LLMEnums import LLMEnums, GROQEnums
-from groq import Groq
 import logging
-from logging import Logger
+
+from groq import Groq
+
+from ..LLMEnums import GROQEnums
+from ..LLMInterface import LLMInterface
+
 
 class GROQProvider(LLMInterface):
-    def __init__(self, api_key: str,
-                       default_input_max_characters: int=1000,
-                       default_generation_max_output_tokens: int=1000,
-                       default_generation_temperature: float=0.1):
-        
+    def __init__(
+        self,
+        api_key: str,
+        default_input_max_characters: int = 1000,
+        default_generation_max_output_tokens: int = 1000,
+        default_generation_temperature: float = 0.1,
+    ):
+
         self.api_key = api_key
 
         self.default_input_max_characters = default_input_max_characters
-        self.default_generation_max_output_tokens = default_generation_max_output_tokens    
-        self.default_generation_temperature = default_generation_temperature        
+        self.default_generation_max_output_tokens = default_generation_max_output_tokens
+        self.default_generation_temperature = default_generation_temperature
         self.generation_model_id = None
         self.embedding_model_id = None
         self.embedding_size = None
@@ -27,7 +32,6 @@ class GROQProvider(LLMInterface):
         self.generation_model_id = model_id
         self.logger.info(msg="generation model is set")
 
-
     def set_embedding_model(self, model_id: str, embedding_size: int):
         self.embedding_model_id = model_id
         self.embedding_size = embedding_size
@@ -35,44 +39,57 @@ class GROQProvider(LLMInterface):
 
     def process_text(self, text: str):
         if len(text) > self.default_input_max_characters:
-            self.logger.warning(f"Input text exceeds maximum character limit of {self.default_input_max_characters}. Truncating input.")
-            return text[:self.default_input_max_characters]
+            self.logger.warning(
+                f"Input text exceeds maximum character limit of {self.default_input_max_characters}. Truncating input."
+            )
+            return text[: self.default_input_max_characters]
         return text
-    def generate_text(self, prompt: str, chat_history: list=[], max_output_tokens: int=0,
-                            temperature: float = 0):
+
+    def generate_text(
+        self,
+        prompt: str,
+        chat_history: list | None = None,
+        max_output_tokens: int = 0,
+        temperature: float = 0,
+    ):
         if not self.generation_model_id:
             self.logger.error("GROQ client was not set")
             return None
-        
+
         if not self.client:
             self.logger.error("GROQ client is not initialized properly.")
             return None
-        
-        max_output_tokens = max_output_tokens if max_output_tokens else self.default_generation_max_output_tokens
-        temperature = temperature if temperature else self.default_generation_temperature
-        
-        chat_history.append(
-            self.construct_prompt(prompt=prompt, role=GROQEnums.USER.value)
+
+        max_output_tokens = (
+            max_output_tokens
+            if max_output_tokens
+            else self.default_generation_max_output_tokens
         )
+        temperature = (
+            temperature if temperature else self.default_generation_temperature
+        )
+
+        messages = list(chat_history) if chat_history is not None else []
+        messages.append(self.construct_prompt(prompt=prompt, role=GROQEnums.USER.value))
         try:
             response = self.client.chat.completions.create(
                 model=self.generation_model_id,
-                messages=chat_history,
+                messages=messages,
                 max_tokens=max_output_tokens,
-                temperature=temperature
+                temperature=temperature,
             )
             if not response or not response.choices[0].message:
                 self.logger.warning("GROQ generation returned empty response.")
                 return ""
-            
+
             return response.choices[0].message
-        
+
         except Exception as e:
             self.logger.error(f"GROQ generation error: {e}")
             raise
 
     def embed_text(self, text: str, document_type: str = "None"):
-        
+
         if not self.client:
             self.logger.error("GROQ client was not set")
             return None
@@ -80,13 +97,18 @@ class GROQProvider(LLMInterface):
         if not self.embedding_model_id:
             self.logger.error("Embedding model for GROQ was not set")
             return None
-        
+
         response = self.client.embeddings.create(
-            model = self.embedding_model_id,
-            input = text,
+            model=self.embedding_model_id,
+            input=text,
         )
 
-        if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
+        if (
+            not response
+            or not response.data
+            or len(response.data) == 0
+            or not response.data[0].embedding
+        ):
             self.logger.error("Error while embedding text with GROQ")
             return None
 

@@ -43,7 +43,7 @@ services:
     restart: always
 
   pgvector:
-    image: pgvector/pgvector:0.8.4-pg17 
+    image: pgvector/pgvector:0.8.4-pg17
     container_name: pgvector
     init: true
     ports:

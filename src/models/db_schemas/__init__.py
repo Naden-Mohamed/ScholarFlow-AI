@@ -1,1 +1,1 @@
-from .scholarflow.schemes import DataChunk, Project, Asset
+from .scholarflow.schemes import Asset, DataChunk, Project

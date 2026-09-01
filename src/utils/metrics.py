@@ -1,22 +1,25 @@
-from typing import Callable
-
-from prometheus_client import Counter, Histogram, generate_latest, CONTENT_TYPE_LATEST
-from fastapi import FastAPI, Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 import time
 
-REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP Requests', ['method', 'endpoint', 'status'])
-REQUEST_LATENCY = Histogram('http_request_duration_seconds', 'HTTP Request Latency', ['method', 'endpoint'])
+from fastapi import FastAPI, Request, Response
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from starlette.middleware.base import BaseHTTPMiddleware
+
+REQUEST_COUNT = Counter(
+    "http_requests_total", "Total HTTP Requests", ["method", "endpoint", "status"]
+)
+REQUEST_LATENCY = Histogram(
+    "http_request_duration_seconds", "HTTP Request Latency", ["method", "endpoint"]
+)
 RAG_EMPTY_RETRIEVAL = Counter(
-    'rag_empty_retrieval_total',
-    'Queries with no retrieved docs'
+    "rag_empty_retrieval_total", "Queries with no retrieved docs"
 )
 
 RAG_TOP_SCORE = Histogram(
-    'rag_top_retrieval_score',
-    'Score of top retrieved chunk',
-    buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+    "rag_top_retrieval_score",
+    "Score of top retrieved chunk",
+    buckets=(0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0),
 )
+
 
 class PrometheusMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
@@ -26,15 +29,22 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
 
         duration = time.time() - start_time
         endpoint = request.url.path
- 
-        REQUEST_LATENCY.labels(method=request.method, endpoint=endpoint).observe(duration)
-        REQUEST_COUNT.labels(method=request.method, endpoint=endpoint, status=response.status_code).inc()
+
+        REQUEST_LATENCY.labels(method=request.method, endpoint=endpoint).observe(
+            duration
+        )
+        REQUEST_COUNT.labels(
+            method=request.method, endpoint=endpoint, status=response.status_code
+        ).inc()
 
         return response
-    
+
+
 def setup_metrics(app: FastAPI):
     app.add_middleware(PrometheusMiddleware)
-    
-    @app.get("/TrhBVe_m5gg2002_E5VVqS", include_in_schema=False)# to not be included in the docs, it doesn't have to be exposed
+
+    @app.get(
+        "/TrhBVe_m5gg2002_E5VVqS", include_in_schema=False
+    )  # to not be included in the docs, it doesn't have to be exposed
     def metrics():
         return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)

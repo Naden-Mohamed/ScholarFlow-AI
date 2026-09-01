@@ -1,8 +1,8 @@
 from pydantic import BaseModel
-from typing import Optional
+
 
 class DataSchema(BaseModel):
-    file_id: Optional[str] = None
-    chunk_size: Optional[int] = 100
-    overlap_size: Optional[int] = 20
-    do_reset: Optional[int] = 0 
+    file_id: str | None = None
+    chunk_size: int | None = 100
+    overlap_size: int | None = 20
+    do_reset: int | None = 0

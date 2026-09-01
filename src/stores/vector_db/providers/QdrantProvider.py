@@ -1,11 +1,12 @@
-from ..VectorDBInterface import VectorDBInterface
-from ..VectorDBEnums import VectorDBType, DistanceMetric
-from qdrant_client import QdrantClient
-from qdrant_client.models import VectorParams, PointStruct, Distance
-from typing import List
-from typing import Optional
 import logging
 import uuid
+
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
+
+from ..VectorDBEnums import DistanceMetric
+from ..VectorDBInterface import VectorDBInterface
+
 
 class QdrantDBProvider(VectorDBInterface):
     def __init__(self, url: str, distance_metric: str = "Cosine"):
@@ -19,7 +20,7 @@ class QdrantDBProvider(VectorDBInterface):
         elif distance_metric == DistanceMetric.DOT_PRODUCT.value:
             self.distance_metric = Distance.DOT
         else:
-            self.distance_metric = Distance.COSINE  
+            self.distance_metric = Distance.COSINE
 
         self.logger = logging.getLogger(__name__)
 
@@ -30,16 +31,19 @@ class QdrantDBProvider(VectorDBInterface):
         except Exception as e:
             self.logger.error(f"Failed to connect to Qdrant database: {e}")
             self.client = None
-            
 
     def disconnect(self):
         if self.client:
             self.client = None
             self.logger.info("Disconnected from Qdrant database.")
         else:
-            self.logger.warning("No active connection to disconnect from Qdrant database.")
+            self.logger.warning(
+                "No active connection to disconnect from Qdrant database."
+            )
 
-    def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
+    def create_collection(
+        self, collection_name: str, embedding_size: int, do_reset: bool = False
+    ):
         if not self.client:
             self.logger.error("Qdrant client is not connected. Call connect() first.")
             return False
@@ -49,18 +53,21 @@ class QdrantDBProvider(VectorDBInterface):
                 self.client.delete_collection(collection_name)
                 self.logger.info(f"Collection '{collection_name}' deleted for reset.")
             else:
-                self.logger.info(f"Collection '{collection_name}' already exists, skipping creation.")
-                return True  
+                self.logger.info(
+                    f"Collection '{collection_name}' already exists, skipping creation."
+                )
+                return True
 
         try:
             self.client.create_collection(
                 collection_name=collection_name,
                 vectors_config=VectorParams(
-                    size=embedding_size,
-                    distance=self.distance_metric  
-                )
+                    size=embedding_size, distance=self.distance_metric
+                ),
             )
-            self.logger.info(f"Collection '{collection_name}' created with size {embedding_size}.")
+            self.logger.info(
+                f"Collection '{collection_name}' created with size {embedding_size}."
+            )
             return True
         except Exception as e:
             self.logger.error(f"Failed to create collection '{collection_name}': {e}")
@@ -73,7 +80,9 @@ class QdrantDBProvider(VectorDBInterface):
         try:
             return self.client.collection_exists(collection_name="{collection_name}")
         except Exception as e:
-            self.logger.error(f"Failed to check if collection '{collection_name}' exists: {e}")
+            self.logger.error(
+                f"Failed to check if collection '{collection_name}' exists: {e}"
+            )
             return False
 
     def delete_collection(self, collection_name: str):
@@ -88,8 +97,14 @@ class QdrantDBProvider(VectorDBInterface):
         if self.client:
             return self.client.get_collections()
 
-    def insert_one(self, collection_name: str, text: str, vector: list,
-                   record_id: Optional[str] = None, metadata: Optional[dict] = None):
+    def insert_one(
+        self,
+        collection_name: str,
+        text: str,
+        vector: list,
+        record_id: str | None = None,
+        metadata: dict | None = None,
+    ):
         if not self.client:
             self.logger.error("Qdrant client is not connected. Call connect() first.")
             return False
@@ -105,21 +120,29 @@ class QdrantDBProvider(VectorDBInterface):
                     PointStruct(
                         id=record_id,
                         vector=vector,
-                        payload={
-                            "text": text,
-                            **(metadata or {})
-                        }
+                        payload={"text": text, **(metadata or {})},
                     )
-                ]
+                ],
             )
-            self.logger.info(f"Inserted one point into collection '{collection_name}' successfully.")
+            self.logger.info(
+                f"Inserted one point into collection '{collection_name}' successfully."
+            )
             return True
         except Exception as e:
-            self.logger.error(f"Failed to insert point into collection '{collection_name}': {e}")
+            self.logger.error(
+                f"Failed to insert point into collection '{collection_name}': {e}"
+            )
             return False
 
-    def insert_many(self, collection_name: str, texts: list, vectors: list,
-                    metadatas: Optional[list] = None, record_ids: Optional[List[str]] = None, batch_size: int = 50):
+    def insert_many(
+        self,
+        collection_name: str,
+        texts: list,
+        vectors: list,
+        metadatas: list | None = None,
+        record_ids: list[str] | None = None,
+        batch_size: int = 50,
+    ):
         if not self.client:
             self.logger.error("Qdrant client is not connected. Call connect() first.")
             return False
@@ -141,10 +164,7 @@ class QdrantDBProvider(VectorDBInterface):
                 PointStruct(
                     id=batch_record_ids[x],
                     vector=batch_vectors[x],
-                    payload={
-                        "text": batch_texts[x],
-                        "metadata": batch_metadatas[x]
-                    }
+                    payload={"text": batch_texts[x], "metadata": batch_metadatas[x]},
                 )
                 for x in range(len(batch_texts))
             ]
@@ -154,9 +174,13 @@ class QdrantDBProvider(VectorDBInterface):
                     collection_name=collection_name,
                     points=batch_points,
                 )
-                self.logger.info(f"Inserted batch of {len(batch_texts)} points into '{collection_name}'.")
+                self.logger.info(
+                    f"Inserted batch of {len(batch_texts)} points into '{collection_name}'."
+                )
             except Exception as e:
-                self.logger.error(f"Failed to insert batch into '{collection_name}': {e}")
+                self.logger.error(
+                    f"Failed to insert batch into '{collection_name}': {e}"
+                )
                 return False
 
         return True
@@ -168,13 +192,11 @@ class QdrantDBProvider(VectorDBInterface):
 
         try:
             search_result = self.client.query_points(
-                collection_name=collection_name,
-                query=vector,
-                limit=top_k
+                collection_name=collection_name, query=vector, limit=top_k
             )
             self.logger.info(f"Search in '{collection_name}' completed successfully.")
             return search_result.points
-            # the query_points method returns a QueryResponse object, not just a list. 
+            # the query_points method returns a QueryResponse object, not just a list.
             # You should ensure you are returning the .points attribute, which contains the actual search hits.
         except Exception as e:
             self.logger.error(f"Failed to search in '{collection_name}': {e}")

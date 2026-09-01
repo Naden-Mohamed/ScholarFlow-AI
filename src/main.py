@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from routers import data, base, rag
-from utils.metrics import setup_metrics
+
 from helpers.bootstrap import build_clients
+from routers import base, data, rag
+from utils.metrics import setup_metrics
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -15,12 +18,13 @@ async def lifespan(app: FastAPI):
         app.state.vectordb_client,
         app.state.template_parser,
     ) = await build_clients()
-    
+
     yield
-    
+
     # Shutdown: Clean up connections
     await app.state.db_engine.dispose()
     await app.state.vectordb_client.disconnect()
+
 
 app = FastAPI(lifespan=lifespan)
 setup_metrics(app)

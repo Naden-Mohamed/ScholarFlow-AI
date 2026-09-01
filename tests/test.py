@@ -1,24 +1,26 @@
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.datamodel.pipeline_options import PdfPipelineOptions
-from docling.datamodel.base_models import InputFormat
-from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
-from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
-from transformers import AutoTokenizer
-from helpers.config import get_settings
 from pathlib import Path
 
+from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
+from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+from transformers import AutoTokenizer
+
+from helpers.config import get_settings
+
 settings = get_settings()
-source = Path("C:/Users/start/OneDrive/Desktop/ScholarFlow AI/src/Naden Mohamed Yasen - AI Engineer.pdf")
+source = Path(
+    "C:/Users/start/OneDrive/Desktop/ScholarFlow AI/src/Naden Mohamed Yasen - AI Engineer.pdf"
+)
 
 # --- Step 1: Configure pipeline ---
 pipeline_options = PdfPipelineOptions()
-pipeline_options.do_ocr = False          # PDF has embedded text, OCR not needed
+pipeline_options.do_ocr = False  # PDF has embedded text, OCR not needed
 pipeline_options.do_table_structure = True
 
 converter = DocumentConverter(
-    format_options={
-        InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
-    }
+    format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)}
 )
 
 # --- Step 2: Convert ---
@@ -62,19 +64,23 @@ for idx, chunk in enumerate(all_chunks):
                 page_numbers.append(page_no)
         element_types.append(type(item).__name__)
 
-    processed_chunks.append({
-        "text": contextualized_text,
-        "raw_text": chunk.text,
-        "metadata": {
-            "chunk_index": idx,
-            "page_numbers": sorted(set(page_numbers)),
-            "section_headings": headings,
-            "element_types": list(set(element_types)),
-            "token_count": tokenizer.count_tokens(contextualized_text),
-            "has_table": any("Table" in t for t in element_types),
-            "has_figure": any("Figure" in t or "Picture" in t for t in element_types),
+    processed_chunks.append(
+        {
+            "text": contextualized_text,
+            "raw_text": chunk.text,
+            "metadata": {
+                "chunk_index": idx,
+                "page_numbers": sorted(set(page_numbers)),
+                "section_headings": headings,
+                "element_types": list(set(element_types)),
+                "token_count": tokenizer.count_tokens(contextualized_text),
+                "has_table": any("Table" in t for t in element_types),
+                "has_figure": any(
+                    "Figure" in t or "Picture" in t for t in element_types
+                ),
+            },
         }
-    })
+    )
 
 # --- Quick inspection ---
 for c in processed_chunks:

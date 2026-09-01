@@ -1,20 +1,23 @@
-from .BaseController import BaseController
-from .ProjectController import ProjectController
-from helpers.config import get_settings, Settings
+import logging
 import os
 from pathlib import Path
-from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
-from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from docling.datamodel.pipeline_options import PdfPipelineOptions
+
 from docling.datamodel.base_models import InputFormat
+from docling.datamodel.pipeline_options import PdfPipelineOptions
+from docling.document_converter import DocumentConverter, PdfFormatOption
+from docling_core.transforms.chunker.hybrid_chunker import HybridChunker
+from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
 from transformers import AutoTokenizer
-import logging
+
+from helpers.config import get_settings
+
+from .BaseController import BaseController
+from .ProjectController import ProjectController
 
 logger = logging.getLogger(__name__)
 
-class ProcessController(BaseController):
 
+class ProcessController(BaseController):
     def __init__(self, project_id: str):
         super().__init__()
         self.project_id = project_id
@@ -33,7 +36,7 @@ class ProcessController(BaseController):
 
         try:
             pipeline_options = PdfPipelineOptions()
-            pipeline_options.do_ocr = False          # PDF has embedded text, OCR not needed
+            pipeline_options.do_ocr = False  # PDF has embedded text, OCR not needed
             pipeline_options.do_table_structure = True
 
             converter = DocumentConverter(
@@ -89,22 +92,28 @@ class ProcessController(BaseController):
 
             page_numbers = sorted(set(page_numbers))
 
-            processed_chunks.append({
-                # What gets embedded and stored as searchable text
-                "text": contextualized_text,
-                # Raw text without heading context (useful for display)
-                "raw_text": chunk.text,
-                "metadata": {
-                    "chunk_index": idx,
-                    "page_numbers": page_numbers,               # [3, 4]
-                    "section_headings": headings,               # ["Chapter 2", "Newton's Laws"]
-                    "element_types": list(set(element_types)),  # ["TextItem", "TableItem"]
-                    "token_count": tokenizer.count_tokens(contextualized_text),
-                    "has_table": any("Table" in t for t in element_types),
-                    "has_figure": any("Figure" in t or "Picture" in t for t in element_types),
-                    "chunk_type": self._classify_chunk_type(element_types),
+            processed_chunks.append(
+                {
+                    # What gets embedded and stored as searchable text
+                    "text": contextualized_text,
+                    # Raw text without heading context (useful for display)
+                    "raw_text": chunk.text,
+                    "metadata": {
+                        "chunk_index": idx,
+                        "page_numbers": page_numbers,  # [3, 4]
+                        "section_headings": headings,  # ["Chapter 2", "Newton's Laws"]
+                        "element_types": list(
+                            set(element_types)
+                        ),  # ["TextItem", "TableItem"]
+                        "token_count": tokenizer.count_tokens(contextualized_text),
+                        "has_table": any("Table" in t for t in element_types),
+                        "has_figure": any(
+                            "Figure" in t or "Picture" in t for t in element_types
+                        ),
+                        "chunk_type": self._classify_chunk_type(element_types),
+                    },
                 }
-            })
+            )
 
         return processed_chunks
 

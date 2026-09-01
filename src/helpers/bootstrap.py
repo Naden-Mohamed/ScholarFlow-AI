@@ -1,8 +1,10 @@
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from helpers.config import get_settings
 from stores.llm.LLMProviderFactory import LLMProviderFactory
-from stores.vector_db.VectorDBProviderFactory import VectorDBProviderFactory
 from stores.llm.templates.template_parser import TemplateParser
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from stores.vector_db.VectorDBProviderFactory import VectorDBProviderFactory
+
 
 async def build_clients():
     settings = get_settings()
@@ -29,6 +31,15 @@ async def build_clients():
     vectordb_client = vdb_factory.create(provider=settings.VECTOR_DB_BACKEND)
     await vectordb_client.connect()
 
-    template_parser = TemplateParser(language=settings.PRIMARY_LANG, default_language=settings.DEFAULT_LANG)
+    template_parser = TemplateParser(
+        language=settings.PRIMARY_LANG, default_language=settings.DEFAULT_LANG
+    )
 
-    return db_engine, db_client, generation_client, embedding_client, vectordb_client, template_parser
+    return (
+        db_engine,
+        db_client,
+        generation_client,
+        embedding_client,
+        vectordb_client,
+        template_parser,
+    )

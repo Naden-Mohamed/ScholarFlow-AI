@@ -1,16 +1,23 @@
-from .scholarflow_base import SQLAlchemyBase
-from sqlalchemy import Column, Integer, DateTime,String,ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID, JSONB  
 import uuid
-from sqlalchemy import Index
+
+from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import relationship
+
+from .scholarflow_base import SQLAlchemyBase
+
 
 class Asset(SQLAlchemyBase):
     __tablename__ = "assets"
 
-
     # asset_id = Column(Integer, primary_key=True, autoincrement=True)
-    asset_uuid = Column(UUID(as_uuid=True), default=uuid.uuid4, primary_key=True, unique=True, nullable=False)
+    asset_uuid = Column(
+        UUID(as_uuid=True),
+        default=uuid.uuid4,
+        primary_key=True,
+        unique=True,
+        nullable=False,
+    )
 
     asset_type = Column(String, nullable=False)
     asset_name = Column(String, nullable=False)
@@ -19,13 +26,20 @@ class Asset(SQLAlchemyBase):
 
     asset_project_id = Column(String, ForeignKey("projects.project_id"), nullable=False)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=True,
+    )
 
     project = relationship("Project", back_populates="assets")
     chunks = relationship("DataChunk", back_populates="asset")
 
     __table_args__ = (
-        Index('ix_asset_project_id', asset_project_id),
-        Index('ix_asset_type', asset_type),
+        Index("ix_asset_project_id", asset_project_id),
+        Index("ix_asset_type", asset_type),
     )

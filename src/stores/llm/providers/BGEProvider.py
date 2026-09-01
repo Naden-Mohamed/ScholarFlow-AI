@@ -1,14 +1,18 @@
-from ..LLMInterface import LLMInterface
-from ..LLMEnums import DocumentTypeEnum
-from sentence_transformers import SentenceTransformer
 import logging
-from typing import List , Union, Optional
+
+from sentence_transformers import SentenceTransformer
+
+from ..LLMEnums import DocumentTypeEnum
+from ..LLMInterface import LLMInterface
+
 
 class BGEProvider(LLMInterface):
-    def __init__(self,
-                 default_input_max_characters: int = 1000,
-                 default_generation_max_output_tokens: int = 1000,
-                 default_generation_temperature: float = 0.1):
+    def __init__(
+        self,
+        default_input_max_characters: int = 1000,
+        default_generation_max_output_tokens: int = 1000,
+        default_generation_temperature: float = 0.1,
+    ):
 
         self.default_input_max_characters = default_input_max_characters
         self.default_generation_max_output_tokens = default_generation_max_output_tokens
@@ -17,7 +21,7 @@ class BGEProvider(LLMInterface):
         self.generation_model_id = None
         self.embedding_model_id = None
         self.embedding_size = None
-        self.client = None  
+        self.client = None
 
         self.logger = logging.getLogger(__name__)
 
@@ -32,7 +36,7 @@ class BGEProvider(LLMInterface):
         try:
             self.client = SentenceTransformer(
                 model_id,
-                trust_remote_code=True  # required for BAAI/bge-multilingual-gemma2
+                trust_remote_code=True,  # required for BAAI/bge-multilingual-gemma2
             )
             self.logger.info(f"BGE model '{model_id}' loaded successfully.")
         except Exception as e:
@@ -44,24 +48,30 @@ class BGEProvider(LLMInterface):
             self.logger.warning(
                 f"Input text exceeds maximum character limit of {self.default_input_max_characters}. Truncating."
             )
-            return text[:self.default_input_max_characters]
+            return text[: self.default_input_max_characters]
         return text
 
-    def generate_text(self, prompt: str, chat_history: list = [],
-                      max_output_tokens: Optional[int] = None, temperature: Optional[float] = None):
-        self.logger.error("BGE models do not support text generation.") 
-        return None
+    def generate_text(
+        self,
+        prompt: str,
+        chat_history: list | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+    ):
+        self.logger.error("BGE models do not support text generation.")
 
     # Batch Embedding
-    def embed_text(self, text: Union[str, List[str]], document_type: str = ""):
+    def embed_text(self, text: str | list[str], document_type: str = ""):
         if not self.client:
-            self.logger.error("BGE model is not loaded. Call set_embedding_model() first.")
+            self.logger.error(
+                "BGE model is not loaded. Call set_embedding_model() first."
+            )
             return None
 
         if not self.embedding_model_id:
             self.logger.error("Embedding model for BGE was not set.")
             return None
-        
+
         if isinstance(text, str):
             text = [text]
 
@@ -77,7 +87,7 @@ class BGEProvider(LLMInterface):
 
             embedding = self.client.encode(
                 [instruction + t for t in text],
-                normalize_embeddings=True  # recommended for BGE models
+                normalize_embeddings=True,  # recommended for BGE models
             )
 
             if embedding is None or len(embedding) == 0:
@@ -92,4 +102,3 @@ class BGEProvider(LLMInterface):
 
     def construct_prompt(self, prompt: str, role: str):
         self.logger.error("BGE models do not support prompt construction.")
-        return None

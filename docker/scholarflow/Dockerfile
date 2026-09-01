@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 COPY src/requirements.txt .
 
 # uv speeds up the downloading
-RUN uv pip install -r requirements.txt --system 
+RUN uv pip install -r requirements.txt --system
 
 COPY src/ .
 
@@ -38,5 +38,5 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 # to handle more requests at a time, more workers consume more memory and processing
 
 # Binding to --host localhost (or 127.0.0.1) forces Uvicorn to only listen on the container's
-# internal loopback interface. This blocks your host machine (and Docker network routing) 
+# internal loopback interface. This blocks your host machine (and Docker network routing)
 # from accessing the service from outside the container. so (0.0.0.0) is more correct
